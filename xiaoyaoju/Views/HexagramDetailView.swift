@@ -51,6 +51,7 @@ struct HexagramDetailView: View {
         }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if showShareActions {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {

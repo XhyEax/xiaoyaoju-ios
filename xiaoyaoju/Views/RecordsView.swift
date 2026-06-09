@@ -311,6 +311,7 @@ struct RecordDetailView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .navigationTitle(gua.name)
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .tabBar)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 4) {
