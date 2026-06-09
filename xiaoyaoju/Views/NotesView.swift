@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct NotesView: View {
-    private let mpURL = URL(string: "https://mp.weixin.qq.com/s/2qXsWSjlB44tRXoXI5y2Ng")!
+    private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
 
     var body: some View {
         NavigationStack {
