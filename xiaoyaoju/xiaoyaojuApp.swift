@@ -1,23 +1,14 @@
-//
-//  xiaoyaojuApp.swift
-//  xiaoyaoju
-//
-//  Created by xhy on 2026/6/10.
-//
-
+// xiaoyaojuApp.swift
 import SwiftUI
 import SwiftData
 
 @main
 struct xiaoyaojuApp: App {
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+        let schema = Schema([CastRecord.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: [config])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
@@ -25,7 +16,12 @@ struct xiaoyaojuApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
+                .task {
+                    // 启动时后台预载经文数据，避免首次交互卡顿
+                    await GuaDatabase.shared.preload()
+                    await ClassicsDatabase.shared.preload()
+                }
         }
         .modelContainer(sharedModelContainer)
     }

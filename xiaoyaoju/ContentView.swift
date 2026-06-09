@@ -1,61 +1,29 @@
-//
-//  ContentView.swift
-//  xiaoyaoju
-//
-//  Created by xhy on 2026/6/10.
-//
-
+// ContentView.swift — root TabView（5 tab：首页/道德经/庄子/易经/收藏历史）
 import SwiftUI
 import SwiftData
 
-struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+struct MainTabView: View {
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
+        TabView {
+            NotesView()
+                .tabItem { Label("首页", systemImage: "house.fill") }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
+            DaodejingListView()
+                .tabItem { Label("道德经", systemImage: "text.book.closed.fill") }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+            ZhuangziListView()
+                .tabItem { Label("庄子", systemImage: "books.vertical.fill") }
+
+            LookupView()
+                .tabItem { Label("易经", systemImage: "book.closed.fill") }
+
+            RecordsView()
+                .tabItem { Label("收藏", systemImage: "clock.fill") }
         }
     }
 }
 
 #Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    MainTabView()
+        .modelContainer(for: CastRecord.self, inMemory: true)
 }
