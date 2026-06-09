@@ -97,6 +97,43 @@ struct ClassicBottomBar: View {
     }
 }
 
+// 章节顶部工具栏：上一章/下一章（左）+ 注/译/收藏/复制分享（右）；底部 TabBar 常驻
+struct ChapterTopToolbar: ToolbarContent {
+    let shareText: String
+    let prevEnabled: Bool
+    let nextEnabled: Bool
+    let hideAnno: Bool
+    let hideTrans: Bool
+    let isFav: Bool
+    let onPrev: () -> Void
+    let onNext: () -> Void
+    let onAnno: () -> Void
+    let onTrans: () -> Void
+    let onFav: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarLeading) {
+            Button(action: onPrev) { Image(systemName: "chevron.up") }.disabled(!prevEnabled)
+            Button(action: onNext) { Image(systemName: "chevron.down") }.disabled(!nextEnabled)
+        }
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            Button(action: onAnno) { Text("注").foregroundStyle(hideAnno ? Color.secondary : Color.blue) }
+            Button(action: onTrans) { Text("译").foregroundStyle(hideTrans ? Color.secondary : Color.blue) }
+            Button(action: onFav) {
+                Image(systemName: isFav ? "star.fill" : "star")
+                    .foregroundStyle(isFav ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
+            }
+            Menu {
+                Button {
+                    UIPasteboard.general.string = shareText
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } label: { Label("复制", systemImage: "doc.on.doc") }
+                ShareLink(item: shareText) { Label("分享", systemImage: "square.and.arrow.up") }
+            } label: { Image(systemName: "ellipsis.circle") }
+        }
+    }
+}
+
 // 章节底部栏：作为导航底部工具栏（覆盖 TabBar 位置，不隐藏 TabBar，返回无加载动画）
 struct ChapterBottomToolbar: ToolbarContent {
     let prevEnabled: Bool

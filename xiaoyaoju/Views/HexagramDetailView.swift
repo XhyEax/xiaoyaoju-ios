@@ -45,10 +45,32 @@ struct HexagramDetailView: View {
         }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
+        // 控件放在顶部导航栏；底部 TabBar 常驻显示、不隐藏（无切换动画）
         .toolbar {
-            if showShareActions {
-                ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if browseMode {
+                ToolbarItemGroup(placement: .navigationBarLeading) {
+                    Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
+                        Image(systemName: "chevron.up")
+                    }
+                    .disabled(gua.id <= 1)
+                    Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
+                        Image(systemName: "chevron.down")
+                    }
+                    .disabled(gua.id >= 64)
+                }
+            }
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if browseMode {
+                    Button { hideBian.toggle() } label: {
+                        Text("变").foregroundStyle(hideBian ? Color.secondary : Color.blue)
+                    }
+                    Button { fav.toggle("yj", gua.id) } label: {
+                        let on = fav.isFav("yj", gua.id)
+                        Image(systemName: on ? "star.fill" : "star")
+                            .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
+                    }
+                }
+                if showShareActions {
                     Button {
                         UIPasteboard.general.string = shareText()
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -58,35 +80,6 @@ struct HexagramDetailView: View {
                     ShareLink(item: shareText()) {
                         Image(systemName: "square.and.arrow.up")
                     }
-                }
-            }
-            // 上一卦 / 变 收藏 / 下一卦：导航底部工具栏（覆盖 TabBar 位置，不隐藏 TabBar）
-            if browseMode {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
-                        Text("上一卦")
-                    }
-                    .disabled(gua.id <= 1)
-                    Spacer()
-                    Button { hideBian.toggle() } label: {
-                        Text("变")
-                            .frame(width: 30, height: 30)
-                            .foregroundStyle(hideBian ? Color.secondary : Color.blue)
-                            .overlay(Circle().stroke(hideBian ? Color.secondary : Color.blue, lineWidth: 1))
-                    }
-                    Button { fav.toggle("yj", gua.id) } label: {
-                        let on = fav.isFav("yj", gua.id)
-                        Image(systemName: on ? "star.fill" : "star")
-                            .font(.system(size: 15))
-                            .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
-                            .frame(width: 30, height: 30)
-                            .overlay(Circle().stroke(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary.opacity(0.5), lineWidth: 1))
-                    }
-                    Spacer()
-                    Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
-                        Text("下一卦")
-                    }
-                    .disabled(gua.id >= 64)
                 }
             }
         }

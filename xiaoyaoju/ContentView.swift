@@ -9,13 +9,13 @@ struct MainTabView: View {
                 .tabItem { Label("首页", systemImage: "house.fill") }
 
             DaodejingListView()
-                .tabItem { Label("道德经", systemImage: "text.book.closed.fill") }
+                .tabItem { Label("道德经", image: "TabDao") }
 
             ZhuangziListView()
-                .tabItem { Label("庄子", systemImage: "books.vertical.fill") }
+                .tabItem { Label("庄子", image: "TabZhuang") }
 
             LookupView()
-                .tabItem { Label("易经", systemImage: "book.closed.fill") }
+                .tabItem { Label("易经", image: "TabYi") }
 
             RecordsView()
                 .tabItem { Label("收藏", systemImage: "clock.fill") }
