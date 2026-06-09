@@ -43,34 +43,15 @@ struct HexagramDetailView: View {
             }
             .padding()
         }
+        // 底部翻页栏：上一卦 / 变 收藏 / 下一卦；TabBar 常驻显示在其下方，二者都不隐藏
+        .safeAreaInset(edge: .bottom) {
+            if browseMode { bottomNavBar }
+        }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
-        // 控件放在顶部导航栏；底部 TabBar 常驻显示、不隐藏（无切换动画）
         .toolbar {
-            if browseMode {
-                ToolbarItemGroup(placement: .navigationBarLeading) {
-                    Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
-                        Image(systemName: "chevron.up")
-                    }
-                    .disabled(gua.id <= 1)
-                    Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
-                        Image(systemName: "chevron.down")
-                    }
-                    .disabled(gua.id >= 64)
-                }
-            }
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                if browseMode {
-                    Button { hideBian.toggle() } label: {
-                        Text("变").foregroundStyle(hideBian ? Color.secondary : Color.blue)
-                    }
-                    Button { fav.toggle("yj", gua.id) } label: {
-                        let on = fav.isFav("yj", gua.id)
-                        Image(systemName: on ? "star.fill" : "star")
-                            .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
-                    }
-                }
-                if showShareActions {
+            if showShareActions {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
                         UIPasteboard.general.string = shareText()
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -83,6 +64,42 @@ struct HexagramDetailView: View {
                 }
             }
         }
+    }
+
+    private var bottomNavBar: some View {
+        HStack(spacing: 0) {
+            Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
+                Text("上一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
+            }
+            .disabled(gua.id <= 1)
+            Divider().frame(height: 18)
+            HStack(spacing: 12) {
+                Button { hideBian.toggle() } label: {
+                    Text("变")
+                        .frame(width: 30, height: 30)
+                        .foregroundStyle(hideBian ? Color.secondary : Color.blue)
+                        .overlay(Circle().stroke(hideBian ? Color.secondary : Color.blue, lineWidth: 1))
+                }
+                Button { fav.toggle("yj", gua.id) } label: {
+                    let on = fav.isFav("yj", gua.id)
+                    Image(systemName: on ? "star.fill" : "star")
+                        .font(.system(size: 15))
+                        .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
+                        .frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary.opacity(0.5), lineWidth: 1))
+                }
+            }
+            .padding(.horizontal, 14)
+            Divider().frame(height: 18)
+            Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
+                Text("下一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
+            }
+            .disabled(gua.id >= 64)
+        }
+        .font(.subheadline)
+        .padding(.horizontal, 6).padding(.vertical, 6)
+        .background(.bar)
+        .overlay(Divider(), alignment: .top)
     }
 
     /// 复制/分享文本：起卦结果含时间/动爻；查卦（无六爻值）为整卦经文

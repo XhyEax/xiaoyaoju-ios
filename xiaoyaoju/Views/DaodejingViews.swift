@@ -66,9 +66,9 @@ struct DaodejingChapterView: View {
         }
         .navigationTitle(chapter?.chapter ?? "道德经")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ChapterTopToolbar(
-                shareText: shareText,
+        .toolbar { ChapterShareToolbar(text: shareText) }
+        .safeAreaInset(edge: .bottom) {
+            ClassicBottomBar(
                 prevEnabled: cur > 1,
                 nextEnabled: cur < db.daodejing.count,
                 hideAnno: hideAnno, hideTrans: hideTrans,
