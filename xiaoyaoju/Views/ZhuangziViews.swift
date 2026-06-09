@@ -61,7 +61,6 @@ struct ZhuangziChapterView: View {
         }
         .navigationTitle(chapter?.chapter ?? "庄子")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar { ChapterShareToolbar(text: shareText) }
         .safeAreaInset(edge: .bottom) {
             ClassicBottomBar(
