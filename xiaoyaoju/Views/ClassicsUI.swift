@@ -97,6 +97,47 @@ struct ClassicBottomBar: View {
     }
 }
 
+// 章节底部栏：作为导航底部工具栏（覆盖 TabBar 位置，不隐藏 TabBar，返回无加载动画）
+struct ChapterBottomToolbar: ToolbarContent {
+    let prevEnabled: Bool
+    let nextEnabled: Bool
+    let hideAnno: Bool
+    let hideTrans: Bool
+    let isFav: Bool
+    let onPrev: () -> Void
+    let onNext: () -> Void
+    let onAnno: () -> Void
+    let onTrans: () -> Void
+    let onFav: () -> Void
+
+    private func circle(_ label: String, on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(.system(size: 15))
+                .foregroundStyle(on ? Color.blue : Color.secondary)
+                .frame(width: 30, height: 30)
+                .overlay(Circle().stroke(on ? Color.blue : Color.secondary.opacity(0.5), lineWidth: 1))
+        }
+    }
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            Button("上一章", action: onPrev).disabled(!prevEnabled)
+            Spacer()
+            circle("注", on: !hideAnno, onAnno)
+            circle("译", on: !hideTrans, onTrans)
+            Button(action: onFav) {
+                Image(systemName: isFav ? "star.fill" : "star")
+                    .font(.system(size: 15))
+                    .foregroundStyle(isFav ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
+                    .frame(width: 30, height: 30)
+                    .overlay(Circle().stroke(isFav ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary.opacity(0.5), lineWidth: 1))
+            }
+            Spacer()
+            Button("下一章", action: onNext).disabled(!nextEnabled)
+        }
+    }
+}
+
 // 圆形文字切换（注/译），显示态蓝、隐藏态灰
 struct CircleToggle: View {
     let label: String

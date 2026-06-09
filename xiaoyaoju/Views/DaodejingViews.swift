@@ -66,8 +66,20 @@ struct DaodejingChapterView: View {
         }
         .navigationTitle(chapter?.chapter ?? "道德经")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ChapterShareToolbar(text: shareText) }
-        .safeAreaInset(edge: .bottom) { chapterBottomBar }
+        .toolbar {
+            ChapterShareToolbar(text: shareText)
+            ChapterBottomToolbar(
+                prevEnabled: cur > 1,
+                nextEnabled: cur < db.daodejing.count,
+                hideAnno: hideAnno, hideTrans: hideTrans,
+                isFav: fav.isFav("ddj", cur),
+                onPrev: { if cur > 1 { cur -= 1 } },
+                onNext: { if cur < db.daodejing.count { cur += 1 } },
+                onAnno: { hideAnno.toggle() },
+                onTrans: { hideTrans.toggle() },
+                onFav: { fav.toggle("ddj", cur) }
+            )
+        }
     }
 
     private var shareText: String {
@@ -76,19 +88,5 @@ struct DaodejingChapterView: View {
         if !c.annotation.isEmpty && !hideAnno { parts.append("【注释】" + c.annotation) }
         if !hideTrans { parts.append("【译文】" + c.translation) }
         return parts.joined(separator: "\n\n")
-    }
-
-    private var chapterBottomBar: some View {
-        ClassicBottomBar(
-            prevEnabled: cur > 1,
-            nextEnabled: cur < db.daodejing.count,
-            hideAnno: hideAnno, hideTrans: hideTrans,
-            isFav: fav.isFav("ddj", cur),
-            onPrev: { if cur > 1 { cur -= 1 } },
-            onNext: { if cur < db.daodejing.count { cur += 1 } },
-            onAnno: { hideAnno.toggle() },
-            onTrans: { hideTrans.toggle() },
-            onFav: { fav.toggle("ddj", cur) }
-        )
     }
 }

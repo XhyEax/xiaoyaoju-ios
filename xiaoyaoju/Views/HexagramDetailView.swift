@@ -43,12 +43,6 @@ struct HexagramDetailView: View {
             }
             .padding()
         }
-        // 底部翻页栏：上一卦 / 下一卦（仅查卦浏览态，占位不遮挡内容）
-        .safeAreaInset(edge: .bottom) {
-            if browseMode {
-                bottomNavBar
-            }
-        }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -65,44 +59,36 @@ struct HexagramDetailView: View {
                     }
                 }
             }
-        }
-    }
-
-    private var bottomNavBar: some View {
-        HStack(spacing: 0) {
-            Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
-                Text("上一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
-            }
-            .disabled(gua.id <= 1)
-            Divider().frame(height: 18)
-            // 变爻 显示/隐藏
-            HStack(spacing: 12) {
-                Button { hideBian.toggle() } label: {
-                    Text("变")
-                        .frame(width: 30, height: 30)
-                        .foregroundStyle(hideBian ? Color.secondary : Color.blue)
-                        .overlay(Circle().stroke(hideBian ? Color.secondary : Color.blue, lineWidth: 1))
+            // 上一卦 / 变 收藏 / 下一卦：导航底部工具栏（覆盖 TabBar 位置，不隐藏 TabBar）
+            if browseMode {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    Button { if gua.id > 1 { browseNumber = gua.id - 1 } } label: {
+                        Text("上一卦")
+                    }
+                    .disabled(gua.id <= 1)
+                    Spacer()
+                    Button { hideBian.toggle() } label: {
+                        Text("变")
+                            .frame(width: 30, height: 30)
+                            .foregroundStyle(hideBian ? Color.secondary : Color.blue)
+                            .overlay(Circle().stroke(hideBian ? Color.secondary : Color.blue, lineWidth: 1))
+                    }
+                    Button { fav.toggle("yj", gua.id) } label: {
+                        let on = fav.isFav("yj", gua.id)
+                        Image(systemName: on ? "star.fill" : "star")
+                            .font(.system(size: 15))
+                            .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
+                            .frame(width: 30, height: 30)
+                            .overlay(Circle().stroke(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary.opacity(0.5), lineWidth: 1))
+                    }
+                    Spacer()
+                    Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
+                        Text("下一卦")
+                    }
+                    .disabled(gua.id >= 64)
                 }
-                Button { fav.toggle("yj", gua.id) } label: {
-                    let on = fav.isFav("yj", gua.id)
-                    Image(systemName: on ? "star.fill" : "star")
-                        .font(.system(size: 15))
-                        .foregroundStyle(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary)
-                        .frame(width: 30, height: 30)
-                        .overlay(Circle().stroke(on ? Color(red: 0.96, green: 0.65, blue: 0.14) : Color.secondary.opacity(0.5), lineWidth: 1))
-                }
             }
-            .padding(.horizontal, 14)
-            Divider().frame(height: 18)
-            Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
-                Text("下一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
-            }
-            .disabled(gua.id >= 64)
         }
-        .font(.subheadline)
-        .padding(.horizontal, 6).padding(.vertical, 6)
-        .background(.bar)
-        .overlay(Divider(), alignment: .top)
     }
 
     /// 复制/分享文本：起卦结果含时间/动爻；查卦（无六爻值）为整卦经文
