@@ -14,11 +14,12 @@ struct ClassicCard: View {
     var color: Color = .primary
     var lineSpacing: CGFloat = 2
     var uiFont: UIFont
+    var highlight: String = ""
 
     init(_ text: String, title: String? = nil, copy: String,
-         uiFont: UIFont, color: Color = .primary, lineSpacing: CGFloat = 2) {
+         uiFont: UIFont, color: Color = .primary, lineSpacing: CGFloat = 2, highlight: String = "") {
         self.text = text; self.title = title; self.copy = copy
-        self.uiFont = uiFont; self.color = color; self.lineSpacing = lineSpacing
+        self.uiFont = uiFont; self.color = color; self.lineSpacing = lineSpacing; self.highlight = highlight
     }
 
     var body: some View {
@@ -26,7 +27,7 @@ struct ClassicCard: View {
             if let title {
                 Text(title).font(.subheadline).bold().foregroundStyle(.secondary)
             }
-            ReadOnlyTextEditor(text: text, font: uiFont, color: UIColor(color), lineSpacing: lineSpacing)
+            ReadOnlyTextEditor(text: text, font: uiFont, color: UIColor(color), lineSpacing: lineSpacing, highlight: highlight)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)

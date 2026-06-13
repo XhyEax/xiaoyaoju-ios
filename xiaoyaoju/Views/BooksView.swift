@@ -12,7 +12,7 @@ struct BookListView: View {
     var body: some View {
         List(results) { c in
             NavigationLink {
-                BookChapterView(bookId: bookId, index: c.index)
+                BookChapterView(bookId: bookId, index: c.index, highlight: searchText)
             } label: {
                 HStack(spacing: 12) {
                     Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
@@ -36,14 +36,17 @@ struct BookListView: View {
 // 通用章节页（双格式自适应；注释关闭时正文去注释标号；正文 \n 原生换行）
 struct BookChapterView: View {
     let bookId: String
+    var highlight: String = ""
     @Environment(\.dismiss) private var dismiss
     @State private var cur: Int
     @State private var hideAnno: Bool
     @State private var hideTrans: Bool
     @State private var fav = FavoritesStore.shared
+    @State private var showTOC = false
 
-    init(bookId: String, index: Int) {
+    init(bookId: String, index: Int, highlight: String = "") {
         self.bookId = bookId
+        self.highlight = highlight
         _cur = State(initialValue: index)
         _hideAnno = State(initialValue: UserDefaults.standard.bool(forKey: bookId + "_hideAnno"))
         _hideTrans = State(initialValue: UserDefaults.standard.bool(forKey: bookId + "_hideTrans"))
@@ -55,41 +58,47 @@ struct BookChapterView: View {
     private func o(_ s: String) -> String { hideAnno ? stripMarks(s) : s }
 
     var body: some View {
-        ScrollView {
-            if let c = chapter {
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(c.chapter).font(.title2).bold()
-                        if let t = c.title, t != c.chapter {
-                            Text(t).font(.subheadline).foregroundStyle(.secondary)
+        ScrollViewReader { proxy in
+            ScrollView {
+                if let c = chapter {
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(c.chapter).font(.title2).bold()
+                            if let t = c.title, t != c.chapter {
+                                Text(t).font(.subheadline).foregroundStyle(.secondary)
+                            }
                         }
+                        if let ps = c.paragraphs, !ps.isEmpty {
+                            ForEach(Array(ps.enumerated()), id: \.offset) { i, p in
+                                paragraphCard(p).id("c\(i)")
+                            }
+                        } else {
+                            ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""),
+                                        uiFont: .preferredFont(forTextStyle: .body), lineSpacing: 6, highlight: highlight).id("c0")
+                            if let a = c.annotation, !a.isEmpty, !hideAnno {
+                                ClassicCard(a, title: "注释", copy: a,
+                                            uiFont: .preferredFont(forTextStyle: .footnote), color: .secondary)
+                            }
+                            if !hideTrans, let tr = c.translation, !tr.isEmpty {
+                                ClassicCard(tr, title: "译文", copy: tr,
+                                            uiFont: .preferredFont(forTextStyle: .body), highlight: highlight).id("ctr")
+                            }
+                        }
+                        Color.clear.frame(height: 8)
                     }
-                    if let ps = c.paragraphs, !ps.isEmpty {
-                        ForEach(Array(ps.enumerated()), id: \.offset) { _, p in
-                            paragraphCard(p)
-                        }
-                    } else {
-                        ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""),
-                                    uiFont: .preferredFont(forTextStyle: .body), lineSpacing: 6)
-                        if let a = c.annotation, !a.isEmpty, !hideAnno {
-                            ClassicCard(a, title: "注释", copy: a,
-                                        uiFont: .preferredFont(forTextStyle: .footnote), color: .secondary)
-                        }
-                        if !hideTrans, let tr = c.translation, !tr.isEmpty {
-                            ClassicCard(tr, title: "译文", copy: tr,
-                                        uiFont: .preferredFont(forTextStyle: .body))
-                        }
-                    }
-                    Color.clear.frame(height: 8)
+                    .padding()
                 }
-                .padding()
             }
+            .onAppear { scrollToMatch(proxy) }
         }
         .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showTOC) {
+            ChapterTOCSheet(bookId: bookId, current: cur) { idx in cur = idx; showTOC = false }
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button { dismiss() } label: { Image(systemName: "list.bullet") } // 目录：返回书目（在返回右侧）
+                Button { showTOC = true } label: { Image(systemName: "list.bullet") } // 目录：章节列表
             }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
@@ -117,7 +126,7 @@ struct BookChapterView: View {
 
     private func paragraphCard(_ p: ClassicPara) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            ReadOnlyTextEditor(text: o(p.original), font: .preferredFont(forTextStyle: .body), lineSpacing: 6)
+            ReadOnlyTextEditor(text: o(p.original), font: .preferredFont(forTextStyle: .body), lineSpacing: 6, highlight: highlight)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !p.annotation.isEmpty && !hideAnno {
                 ReadOnlyTextEditor(text: "注：" + p.annotation, font: .preferredFont(forTextStyle: .footnote), color: .secondaryLabel, lineSpacing: 3)
@@ -125,7 +134,7 @@ struct BookChapterView: View {
             }
             if !hideTrans {
                 Divider()
-                ReadOnlyTextEditor(text: p.translation, font: .preferredFont(forTextStyle: .body), color: .secondaryLabel, lineSpacing: 3)
+                ReadOnlyTextEditor(text: p.translation, font: .preferredFont(forTextStyle: .body), color: .secondaryLabel, lineSpacing: 3, highlight: highlight)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
@@ -152,5 +161,48 @@ struct BookChapterView: View {
             parts.append(s)
         }
         return parts.joined(separator: "\n\n")
+    }
+
+    // 搜索跳转：滚动到第一个含关键词的卡片
+    private func scrollToMatch(_ proxy: ScrollViewProxy) {
+        guard !highlight.isEmpty, let c = chapter else { return }
+        func has(_ s: String?) -> Bool { (s ?? "").range(of: highlight, options: .caseInsensitive) != nil }
+        var target: String?
+        if let ps = c.paragraphs, !ps.isEmpty {
+            for (i, p) in ps.enumerated() where has(p.original) || has(p.translation) { target = "c\(i)"; break }
+        } else if has(c.original) { target = "c0" } else if has(c.translation) { target = "ctr" }
+        if let t = target {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { withAnimation { proxy.scrollTo(t, anchor: .top) } }
+        }
+    }
+}
+
+// 章节目录：弹出列表点选跳转
+struct ChapterTOCSheet: View {
+    let bookId: String
+    let current: Int
+    let onPick: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+    private var db: ClassicsDatabase { .shared }
+
+    var body: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                List(db.chapters(bookId)) { c in
+                    Button { onPick(c.index) } label: {
+                        HStack {
+                            Text(c.chapter).foregroundStyle(c.index == current ? .blue : .primary)
+                            Spacer()
+                            if c.index == current { Image(systemName: "checkmark").foregroundStyle(.blue) }
+                        }
+                    }
+                    .id(c.index)
+                }
+                .navigationTitle("目录")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+                .onAppear { proxy.scrollTo(current, anchor: .center) }
+            }
+        }
     }
 }
