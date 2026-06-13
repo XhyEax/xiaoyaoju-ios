@@ -68,6 +68,7 @@ struct BookChapterView: View {
                                 Text(t).font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
+                        .id("top")
                         if let ps = c.paragraphs, !ps.isEmpty {
                             ForEach(Array(ps.enumerated()), id: \.offset) { i, p in
                                 paragraphCard(p).id("c\(i)")
@@ -90,6 +91,7 @@ struct BookChapterView: View {
                 }
             }
             .onAppear { scrollToMatch(proxy) }
+            .onChange(of: cur) { _, _ in proxy.scrollTo("top", anchor: .top) } // 翻页后回到顶部
         }
         .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
         .navigationBarTitleDisplayMode(.inline)
