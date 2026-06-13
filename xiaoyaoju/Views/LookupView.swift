@@ -11,7 +11,16 @@ struct LookupView: View {
         NavigationStack {
             ScrollViewReader { proxy in
                 List {
-                    Section("全部六十四卦") {
+                    
+                    NavigationLink {
+                        ManualInputView()
+                    } label: {
+                        Label("手动点选六爻查询", systemImage: "hand.tap")
+                            .foregroundStyle(.blue)
+                    }
+                    
+                    
+//                    Section("全部六十四卦") {
                         ForEach(results) { gua in
                             NavigationLink {
                                 HexagramDetailView(hexagram: gua, showShareActions: true)
@@ -19,16 +28,11 @@ struct LookupView: View {
                                 guaRow(gua)
                             }
                         }
-                    }
+//                    }
 
-                    Section {
-                        NavigationLink {
-                            ManualInputView()
-                        } label: {
-                            Label("手动点选六爻查询", systemImage: "hand.tap")
-                                .foregroundStyle(.blue)
-                        }
-                    }
+//                    Section {
+//                     
+//                    }
                 }
                 .navigationTitle("易经")
                 .searchable(text: $searchText, prompt: "搜索卦名、卦辞、爻辞")

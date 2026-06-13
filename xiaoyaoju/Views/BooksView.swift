@@ -93,12 +93,14 @@ struct BookChapterView: View {
         .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button { dismiss() } label: { Image(systemName: "list.bullet") } // 目录：返回书目（在返回右侧）
+            }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
                     UIPasteboard.general.string = shareText
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                 } label: { Image(systemName: "doc.on.doc") }
-                Button { dismiss() } label: { Image(systemName: "list.bullet") } // 目录：返回书目
                 ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }
             }
         }
