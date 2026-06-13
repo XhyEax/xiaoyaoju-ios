@@ -9,28 +9,33 @@ struct LookupView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("全部六十四卦") {
-                    ForEach(results) { gua in
+            ScrollViewReader { proxy in
+                List {
+                    Section("全部六十四卦") {
+                        ForEach(results) { gua in
+                            NavigationLink {
+                                HexagramDetailView(hexagram: gua, showShareActions: true)
+                            } label: {
+                                guaRow(gua)
+                            }
+                        }
+                    }
+
+                    Section {
                         NavigationLink {
-                            HexagramDetailView(hexagram: gua, showShareActions: true)
+                            ManualInputView()
                         } label: {
-                            guaRow(gua)
+                            Label("手动点选六爻查询", systemImage: "hand.tap")
+                                .foregroundStyle(.blue)
                         }
                     }
                 }
-
-                Section {
-                    NavigationLink {
-                        ManualInputView()
-                    } label: {
-                        Label("手动点选六爻查询", systemImage: "hand.tap")
-                            .foregroundStyle(.blue)
-                    }
+                .navigationTitle("易经")
+                .searchable(text: $searchText, prompt: "搜索卦名、卦辞、爻辞")
+                .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
+                    if let first = results.first { withAnimation { proxy.scrollTo(first.id, anchor: .top) } }
                 }
             }
-            .navigationTitle("易经")
-            .searchable(text: $searchText, prompt: "搜索卦名、卦辞、爻辞")
         }
     }
 

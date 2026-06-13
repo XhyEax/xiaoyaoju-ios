@@ -9,20 +9,29 @@ struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
     @State private var showUpdate = false
+    @State private var selection = "home"
 
     private var db: ClassicsDatabase { .shared }
     private var books: [String] { parseTabBooks(tabBooksRaw) }
 
     var body: some View {
-        TabView {
+        TabView(selection: Binding(
+            get: { selection },
+            set: { nv in
+                if nv == selection { NotificationCenter.default.post(name: .tabReselected, object: nil) } // 再次点当前 tab → 回顶
+                selection = nv
+            }
+        )) {
             NotesView()
+                .tag("home")
                 .tabItem { Label("首页", image: "TabNotes") }
 
             ForEach(books, id: \.self) { id in
-                bookTab(id)
+                bookTab(id).tag("b_" + id)
             }
 
             RecordsView()
+                .tag("records")
                 .tabItem { Label("收藏", image: "TabRecords") }
         }
         .onAppear {

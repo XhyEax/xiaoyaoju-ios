@@ -10,26 +10,31 @@ struct BookListView: View {
     private var name: String { db.meta(bookId)?.name ?? "典籍" }
 
     var body: some View {
-        List(results) { c in
-            NavigationLink {
-                BookChapterView(bookId: bookId, index: c.index)
-            } label: {
-                HStack(spacing: 12) {
-                    Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(c.chapter)
-                        Text(snip(stripMarks(c.snippetRaw)))
-                            .font(.caption).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.tail)
+        ScrollViewReader { proxy in
+            List(results) { c in
+                NavigationLink {
+                    BookChapterView(bookId: bookId, index: c.index)
+                } label: {
+                    HStack(spacing: 12) {
+                        Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(c.chapter)
+                            Text(snip(stripMarks(c.snippetRaw)))
+                                .font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1).truncationMode(.tail)
+                        }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.vertical, 2)
+            }
+            .navigationTitle(name)
+            .searchable(text: $searchText, prompt: "搜索")
+            .onAppear { db.ensureLoaded(bookId) }
+            .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
+                if let first = results.first { withAnimation { proxy.scrollTo(first.id, anchor: .top) } }
             }
         }
-        .navigationTitle(name)
-        .searchable(text: $searchText, prompt: "搜索")
-        .onAppear { db.ensureLoaded(bookId) }
     }
 }
 
@@ -113,21 +118,19 @@ struct BookChapterView: View {
     private func paragraphCard(_ p: ClassicPara) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(o(p.original)).font(.body).lineSpacing(6)
-                .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !p.annotation.isEmpty && !hideAnno {
                 Text("注：" + p.annotation).font(.footnote).foregroundStyle(.secondary).lineSpacing(3)
-                    .textSelection(.enabled)
             }
             if !hideTrans {
                 Divider()
                 Text(p.translation).foregroundStyle(.secondary).lineSpacing(3)
-                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .textSelection(.enabled)   // 原地可选文本：长按选中正文
     }
 
     private func paraCopy(_ p: ClassicPara) -> String {
