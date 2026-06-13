@@ -9,29 +9,21 @@ struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
     @State private var showUpdate = false
-    @State private var selection = "home"
 
     private var db: ClassicsDatabase { .shared }
     private var books: [String] { parseTabBooks(tabBooksRaw) }
 
     var body: some View {
-        TabView(selection: Binding(
-            get: { selection },
-            set: { nv in
-                if nv == selection { NotificationCenter.default.post(name: .tabReselected, object: nil) } // 再次点当前 tab → 回顶
-                selection = nv
-            }
-        )) {
+        // 用系统默认 TabView：再次点击当前 tab 由系统自动滚到最顶（含露出搜索框）
+        TabView {
             NotesView()
-                .tag("home")
                 .tabItem { Label("首页", image: "TabNotes") }
 
             ForEach(books, id: \.self) { id in
-                bookTab(id).tag("b_" + id)
+                bookTab(id)
             }
 
             RecordsView()
-                .tag("records")
                 .tabItem { Label("收藏", image: "TabRecords") }
         }
         .onAppear {

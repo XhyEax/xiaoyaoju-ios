@@ -34,32 +34,27 @@ struct FavoritesView: View {
                 ContentUnavailableView("暂无收藏", systemImage: "star",
                     description: Text("在典籍 / 易经详情点 ★ 收藏"))
             } else {
-                ScrollViewReader { proxy in
-                    List {
-                        ForEach(items) { it in
-                            NavigationLink {
-                                destination(it)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Text(it.tag).font(.system(size: 15)).foregroundStyle(.blue)
-                                        .frame(width: 26)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(it.title)
-                                        Text(it.sub).font(.caption).foregroundStyle(.secondary)
-                                            .lineLimit(1).truncationMode(.tail)
-                                    }
+                List {
+                    ForEach(items) { it in
+                        NavigationLink {
+                            destination(it)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Text(it.tag).font(.system(size: 15)).foregroundStyle(.blue)
+                                    .frame(width: 26)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(it.title)
+                                    Text(it.sub).font(.caption).foregroundStyle(.secondary)
+                                        .lineLimit(1).truncationMode(.tail)
                                 }
-                                .padding(.vertical, 2)
                             }
-                            .swipeActions {
-                                Button(role: .destructive) {
-                                    fav.remove(it.kind, it.refId)
-                                } label: { Label("删除", systemImage: "trash") }
-                            }
+                            .padding(.vertical, 2)
                         }
-                    }
-                    .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
-                        if let f = items.first { withAnimation { proxy.scrollTo(f.id, anchor: .top) } }
+                        .swipeActions {
+                            Button(role: .destructive) {
+                                fav.remove(it.kind, it.refId)
+                            } label: { Label("删除", systemImage: "trash") }
+                        }
                     }
                 }
             }

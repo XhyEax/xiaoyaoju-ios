@@ -9,15 +9,17 @@ struct LookupView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
-                List {
+            List {
                     
-                    NavigationLink {
-                        ManualInputView()
-                    } label: {
-                        Label("手动点选六爻查询", systemImage: "hand.tap")
-                            .foregroundStyle(.blue)
-                    }
+              
+                        Section {
+                            NavigationLink {
+                                ManualInputView()
+                            } label: {
+                                Label("手动点选六爻查询", systemImage: "hand.tap")
+                                    .foregroundStyle(.blue)
+                            }
+                        }
                     
                     
 //                    Section("全部六十四卦") {
@@ -30,16 +32,9 @@ struct LookupView: View {
                         }
 //                    }
 
-//                    Section {
-//                     
-//                    }
                 }
                 .navigationTitle("易经")
                 .searchable(text: $searchText, prompt: "搜索卦名、卦辞、爻辞")
-                .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
-                    if let first = results.first { withAnimation { proxy.scrollTo(first.id, anchor: .top) } }
-                }
-            }
         }
     }
 

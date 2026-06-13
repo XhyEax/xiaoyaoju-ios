@@ -10,31 +10,26 @@ struct BookListView: View {
     private var name: String { db.meta(bookId)?.name ?? "典籍" }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            List(results) { c in
-                NavigationLink {
-                    BookChapterView(bookId: bookId, index: c.index)
-                } label: {
-                    HStack(spacing: 12) {
-                        Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
-                            .frame(width: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(c.chapter)
-                            Text(snip(stripMarks(c.snippetRaw)))
-                                .font(.caption).foregroundStyle(.secondary)
-                                .lineLimit(1).truncationMode(.tail)
-                        }
+        List(results) { c in
+            NavigationLink {
+                BookChapterView(bookId: bookId, index: c.index)
+            } label: {
+                HStack(spacing: 12) {
+                    Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(c.chapter)
+                        Text(snip(stripMarks(c.snippetRaw)))
+                            .font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.tail)
                     }
-                    .padding(.vertical, 2)
                 }
-            }
-            .navigationTitle(name)
-            .searchable(text: $searchText, prompt: "搜索")
-            .onAppear { db.ensureLoaded(bookId) }
-            .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
-                if let first = results.first { withAnimation { proxy.scrollTo(first.id, anchor: .top) } }
+                .padding(.vertical, 2)
             }
         }
+        .navigationTitle(name)
+        .searchable(text: $searchText, prompt: "搜索")
+        .onAppear { db.ensureLoaded(bookId) }
     }
 }
 

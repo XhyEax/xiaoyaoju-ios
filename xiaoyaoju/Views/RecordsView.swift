@@ -112,22 +112,17 @@ struct RecordsView: View {
             } else if filteredRecords.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
-                ScrollViewReader { proxy in
-                    List(selection: $selection) {
-                        ForEach(filteredRecords) { record in
-                            NavigationLink {
-                                RecordDetailView(record: record)
-                            } label: {
-                                recordRow(record)
-                            }
+                List(selection: $selection) {
+                    ForEach(filteredRecords) { record in
+                        NavigationLink {
+                            RecordDetailView(record: record)
+                        } label: {
+                            recordRow(record)
                         }
-                        .onDelete(perform: editMode.isEditing ? nil : deleteRecords)
                     }
-                    .environment(\.editMode, $editMode)
-                    .onReceive(NotificationCenter.default.publisher(for: .tabReselected)) { _ in
-                        if let f = filteredRecords.first { withAnimation { proxy.scrollTo(f.id, anchor: .top) } }
-                    }
+                    .onDelete(perform: editMode.isEditing ? nil : deleteRecords)
                 }
+                .environment(\.editMode, $editMode)
             }
         }
     }

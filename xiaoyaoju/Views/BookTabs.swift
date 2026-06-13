@@ -2,9 +2,6 @@
 import SwiftUI
 import UIKit
 
-// 再次点击当前底部 tab → 回到顶部
-extension Notification.Name { static let tabReselected = Notification.Name("tabReselected") }
-
 // 解析已选 tab 典籍（storage『tabBooks』逗号分隔），过滤非法、限 1-3 本，缺省 道/庄/易
 @MainActor
 func parseTabBooks(_ raw: String) -> [String] {
