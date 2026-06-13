@@ -16,14 +16,14 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             NotesView()
-                .tabItem { Label("首页", systemImage: "house.fill") }
+                .tabItem { Label("首页", image: "TabNotes") }
 
             ForEach(books, id: \.self) { id in
                 bookTab(id)
             }
 
             RecordsView()
-                .tabItem { Label("收藏", systemImage: "clock.fill") }
+                .tabItem { Label("收藏", image: "TabRecords") }
         }
         .onAppear {
             // 首次安装不提示已内置内容；老用户升级到更高版本则提示一次
