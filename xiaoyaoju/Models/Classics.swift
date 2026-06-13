@@ -34,7 +34,11 @@ struct BookMeta: Identifiable, Codable {
 }
 
 private struct RemoteBook: Codable { let id: String; let name: String; let icon: String?; let type: String?; let data: String? }
-private struct RemoteConfig: Codable { let booklist: [RemoteBook] }
+private struct RemoteUpdate: Codable { let title: String?; let content: String?; let version: Int? }
+private struct RemoteConfig: Codable { let booklist: [RemoteBook]; let update: RemoteUpdate? }
+
+// 更新提示内容（来自 config.json 的 update 字段）
+struct UpdateInfo: Equatable { let title: String; let content: String; let version: Int }
 
 @MainActor
 @Observable
@@ -61,8 +65,10 @@ final class ClassicsDatabase {
 
     private(set) var bookMetas: [BookMeta]
     private(set) var books: [String: [ClassicChapter]] = [:]
+    private(set) var update: UpdateInfo?            // config.json 的 update（弹窗用）
     private var remoteFiles: [String: String] = [:] // id -> data 文件名（config 提供）
     private var loading: Set<String> = []
+    private var refreshed: Set<String> = []         // 本次会话已做过 ETag 刷新的书
 
     private init() {
         if let d = UserDefaults.standard.data(forKey: "cfgBooklist"),
@@ -95,22 +101,29 @@ final class ClassicsDatabase {
         }
     }
 
-    // 确保某 reader 书已加载：随包 > 缓存 > 远程下载 <id>.json
+    // 确保某 reader 书已加载：先随包/缓存立即显示，再后台 ETag 条件刷新（含随包书）
     func ensureLoaded(_ id: String) {
-        if !(books[id]?.isEmpty ?? true) || loading.contains(id) { return }
-        if let name = bundleNames[id], let arr = Self.loadBundle(name), !arr.isEmpty {
-            books[id] = arr
-            return
+        if books[id]?.isEmpty ?? true {
+            if let name = bundleNames[id], let arr = Self.loadBundle(name), !arr.isEmpty { books[id] = arr }
+            else if let arr = Self.loadCache(id), !arr.isEmpty { books[id] = arr }
         }
-        if let arr = Self.loadCache(id), !arr.isEmpty { books[id] = arr }
-        let file = remoteFiles[id] ?? (id + ".json")
+        refreshBook(id)
+    }
+
+    // 后台条件 GET（If-None-Match）：变了(200)写缓存+更新内存+存 ETag；未变(304)沿用
+    func refreshBook(_ id: String) {
+        if refreshed.contains(id) || loading.contains(id) { return }
+        refreshed.insert(id)
         loading.insert(id)
+        let file = remoteFiles[id] ?? (bundleNames[id].map { $0 + ".json" } ?? (id + ".json"))
+        let etag = UserDefaults.standard.string(forKey: "etag_" + id)
         Task {
-            let arr = await Self.fetchBook(Self.DATA_BASE + file)
+            let res = await Self.fetchBookConditional(Self.DATA_BASE + file, etag: etag)
             loading.remove(id)
-            if let arr, !arr.isEmpty {
+            if let (arr, newEtag) = res, !arr.isEmpty {
                 books[id] = arr
                 Self.saveCache(id, arr)
+                if let e = newEtag { UserDefaults.standard.set(e, forKey: "etag_" + id) }
             }
         }
     }
@@ -132,6 +145,9 @@ final class ClassicsDatabase {
             return BookMeta(id: b.id, name: b.name, icon: ic, isYijing: b.type == "yijing")
         }
         remoteFiles = rf
+        if let u = cfg.update {
+            update = UpdateInfo(title: u.title ?? "更新内容", content: u.content ?? "", version: u.version ?? 0)
+        }
         let sig: ([BookMeta]) -> String = { ms in
             ms.map { "\($0.id)|\($0.name)|\($0.icon)|\($0.isYijing)" }.joined(separator: ",")
         }
@@ -161,12 +177,18 @@ final class ClassicsDatabase {
         guard let u = cacheURL(id), let d = try? JSONEncoder().encode(arr) else { return }
         try? d.write(to: u)
     }
-    private nonisolated static func fetchBook(_ s: String) async -> [ClassicChapter]? {
+    // 条件 GET：返回 (章节, 新ETag) 仅当 200；304/失败返回 nil（沿用本地）
+    private nonisolated static func fetchBookConditional(_ s: String, etag: String?) async -> ([ClassicChapter], String?)? {
         guard let url = URL(string: s) else { return nil }
         var req = URLRequest(url: url)
         req.timeoutInterval = 12
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        if let etag { req.setValue(etag, forHTTPHeaderField: "If-None-Match") }
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return try? JSONDecoder().decode([ClassicChapter].self, from: data)
+              let http = resp as? HTTPURLResponse else { return nil }
+        if http.statusCode == 304 { return nil }
+        guard http.statusCode == 200,
+              let arr = try? JSONDecoder().decode([ClassicChapter].self, from: data) else { return nil }
+        return (arr, http.value(forHTTPHeaderField: "Etag"))
     }
 }

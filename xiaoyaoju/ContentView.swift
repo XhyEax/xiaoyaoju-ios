@@ -2,9 +2,6 @@
 import SwiftUI
 import SwiftData
 
-// 更新提示内容（与小程序 config.json update 对齐；version 变更即提示一次）
-private let APP_UPDATE = (version: 10500, title: "更新内容", content: "修复闪烁bug，可配置导航栏。")
-
 struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
@@ -26,15 +23,18 @@ struct MainTabView: View {
             RecordsView()
                 .tabItem { Label("收藏", image: "TabRecords") }
         }
-        .onAppear {
-            // 首次安装不提示已内置内容；老用户升级到更高版本则提示一次
-            if seenVersion == 0 { seenVersion = APP_UPDATE.version }
-            else if seenVersion < APP_UPDATE.version { showUpdate = true }
+        .task {
+            // 启动拉 config.json：更新 booklist + 取 update。版本变化则弹一次更新提示
+            await db.fetchConfig()
+            if let u = db.update {
+                if seenVersion == 0 { seenVersion = u.version }   // 首次安装不提示已内置内容
+                else if u.version != seenVersion { showUpdate = true }
+            }
         }
-        .alert(APP_UPDATE.title, isPresented: $showUpdate) {
-            Button("我知道了") { seenVersion = APP_UPDATE.version }
+        .alert(db.update?.title ?? "更新内容", isPresented: $showUpdate) {
+            Button("我知道了") { if let u = db.update { seenVersion = u.version } }
         } message: {
-            Text(APP_UPDATE.content)
+            Text(db.update?.content ?? "")
         }
     }
 
