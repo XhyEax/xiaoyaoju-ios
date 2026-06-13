@@ -40,21 +40,34 @@ struct BookSettingsView: View {
             List {
                 Section(footer: Text("选择底部显示的典籍 Tab（最少 1 本，最多 3 本），按勾选先后顺序排列。")) {
                     ForEach(db.bookMetas) { b in
-                        Button { toggle(b.id) } label: {
-                            HStack(spacing: 14) {
-                                Text(b.icon).font(.title3).bold()
-                                    .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
-                                    .frame(width: 30)
-                                Text(b.name).foregroundStyle(.primary)
-                                Spacer()
-                                if let i = sel.firstIndex(of: b.id) {
-                                    Text("\(i + 1)").font(.caption2).foregroundStyle(.white)
-                                        .frame(width: 22, height: 22)
-                                        .background(Circle().fill(.blue))
+                        HStack(spacing: 14) {
+                            Button { toggle(b.id) } label: {
+                                HStack(spacing: 14) {
+                                    Text(b.icon).font(.title3).bold()
+                                        .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
+                                        .frame(width: 30)
+                                    Text(b.name).foregroundStyle(.primary)
+                                    Spacer()
                                 }
-                                Image(systemName: sel.contains(b.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+
+                            NavigationLink {
+                                bookPreview(b)
+                            } label: {
+                                Image("IconEye").renderingMode(.template).foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 28)
+
+                            if let i = sel.firstIndex(of: b.id) {
+                                Text("\(i + 1)").font(.caption2).foregroundStyle(.white)
+                                    .frame(width: 22, height: 22)
+                                    .background(Circle().fill(.blue))
+                            }
+                            Image(systemName: sel.contains(b.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
                         }
                     }
                 }
@@ -69,6 +82,12 @@ struct BookSettingsView: View {
             }
             .onAppear { sel = parseTabBooks(tabBooksRaw) }
         }
+    }
+
+    // 预览（不改配置）：易经 → 64 卦工具，其它 → 书目
+    @ViewBuilder
+    private func bookPreview(_ b: BookMeta) -> some View {
+        if b.isYijing { LookupView() } else { BookListView(bookId: b.id) }
     }
 
     private func toggle(_ id: String) {
