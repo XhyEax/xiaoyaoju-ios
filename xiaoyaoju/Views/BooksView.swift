@@ -62,13 +62,13 @@ struct BookChapterView: View {
             ScrollView {
                 if let c = chapter {
                     VStack(alignment: .leading, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(c.chapter).font(.title2).bold()
-                            if let t = c.title, t != c.chapter {
-                                Text(t).font(.subheadline).foregroundStyle(.secondary)
-                            }
+                        // 顶部导航已显示章名，正文不再重复；仅保留副标题（篇章归属）
+                        if let t = c.title, t != c.chapter {
+                            Text(t).font(.subheadline).foregroundStyle(.secondary)
+                                .id("top")
+                        } else {
+                            Color.clear.frame(height: 0).id("top")
                         }
-                        .id("top")
                         if let ps = c.paragraphs, !ps.isEmpty {
                             ForEach(Array(ps.enumerated()), id: \.offset) { i, p in
                                 paragraphCard(p).id("c\(i)")
