@@ -1,28 +1,5 @@
-// Views/BooksView.swift — 典籍 hub / 通用书目 / 通用章节（booklist 驱动，双格式自适应）
+// Views/BooksView.swift — 通用书目 / 通用章节（booklist 驱动，双格式自适应）
 import SwiftUI
-
-// 典籍 hub：列出所有阅读类典籍
-struct BooksHubView: View {
-    private var db: ClassicsDatabase { .shared }
-
-    var body: some View {
-        NavigationStack {
-            List(db.readerBooks()) { b in
-                NavigationLink {
-                    BookListView(bookId: b.id)
-                } label: {
-                    HStack(spacing: 14) {
-                        Text(b.icon).font(.title3).bold().foregroundStyle(.blue)
-                            .frame(width: 30)
-                        Text("《\(b.name)》")
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
-            .navigationTitle("典籍")
-        }
-    }
-}
 
 // 通用书目（搜索 + 章节列表）
 struct BookListView: View {

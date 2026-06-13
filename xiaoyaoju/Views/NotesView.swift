@@ -3,6 +3,7 @@ import SwiftUI
 
 struct NotesView: View {
     private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,14 @@ struct NotesView: View {
             .frame(maxWidth: .infinity)
             .navigationTitle("逍遥居笔记")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showSettings = true } label: {
+                        Image(systemName: "slider.horizontal.3")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) { BookSettingsView() }
         }
     }
 }

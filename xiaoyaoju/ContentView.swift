@@ -1,4 +1,4 @@
-// ContentView.swift — root TabView（首页 / 典籍 / 易经 / 收藏）+ 启动更新提示
+// ContentView.swift — root TabView（首页 + 可配置 1-3 本典籍 + 收藏）+ 启动更新提示
 import SwiftUI
 import SwiftData
 
@@ -6,19 +6,21 @@ import SwiftData
 private let APP_UPDATE = (version: 10500, title: "更新内容", content: "修复闪烁bug，可配置导航栏。")
 
 struct MainTabView: View {
+    @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
     @State private var showUpdate = false
+
+    private var db: ClassicsDatabase { .shared }
+    private var books: [String] { parseTabBooks(tabBooksRaw) }
 
     var body: some View {
         TabView {
             NotesView()
                 .tabItem { Label("首页", systemImage: "house.fill") }
 
-            BooksHubView()
-                .tabItem { Label("典籍", systemImage: "books.vertical.fill") }
-
-            LookupView()
-                .tabItem { Label("易经", image: "TabYi") }
+            ForEach(books, id: \.self) { id in
+                bookTab(id)
+            }
 
             RecordsView()
                 .tabItem { Label("收藏", systemImage: "clock.fill") }
@@ -32,6 +34,24 @@ struct MainTabView: View {
             Button("我知道了") { seenVersion = APP_UPDATE.version }
         } message: {
             Text(APP_UPDATE.content)
+        }
+    }
+
+    // 单个典籍 tab：阅读类 → 书目；易经 → 64 卦工具。图标用书名文字。
+    @ViewBuilder
+    private func bookTab(_ id: String) -> some View {
+        if let meta = db.meta(id) {
+            Group {
+                if meta.isYijing {
+                    LookupView()
+                } else {
+                    NavigationStack { BookListView(bookId: id) }
+                }
+            }
+            .tabItem {
+                Image(uiImage: glyphTabImage(meta.icon))
+                Text(meta.name)
+            }
         }
     }
 }
