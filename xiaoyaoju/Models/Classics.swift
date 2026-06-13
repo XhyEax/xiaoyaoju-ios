@@ -1,34 +1,38 @@
 // Models/Classics.swift
-// 道德经 / 庄子 数据模型与加载（自随包 JSON 文档）
+// 典籍数据模型与加载（随包 JSON，booklist 驱动，双格式自适应）
 import Foundation
 
-// MARK: - 道德经
+// MARK: - 通用章节模型（兼容 paragraphs 段落格式 与 original/annotation/translation 整段格式）
 
-struct DaodejingChapter: Codable, Identifiable {
-    var id: Int { index }
-    let index: Int
-    let chapter: String      // 第一章
-    let title: String        // 道经·第一章
-    let original: String     // 原文
-    let annotation: String   // 注释
-    let translation: String  // 译文
-}
-
-// MARK: - 庄子
-
-struct ZhuangziPara: Codable, Identifiable {
+struct ClassicPara: Codable, Identifiable {
     let original: String
     let annotation: String
     let translation: String
     var id: String { original }
 }
 
-struct ZhuangziChapter: Codable, Identifiable {
+struct ClassicChapter: Codable, Identifiable {
     var id: Int { index }
     let index: Int
-    let chapter: String          // 逍遥游第一
-    let title: String            // 内篇·逍遥游第一
-    let paragraphs: [ZhuangziPara]
+    let chapter: String
+    let title: String?
+    let original: String?
+    let annotation: String?
+    let translation: String?
+    let paragraphs: [ClassicPara]?
+
+    var hasPara: Bool { (paragraphs?.isEmpty == false) }
+    // 列表摘要原始文本（有段落取首段原文，否则整段原文）
+    var snippetRaw: String { paragraphs?.first?.original ?? (original ?? "") }
+}
+
+// MARK: - 典籍清单项
+
+struct BookMeta: Identifiable {
+    let id: String
+    let name: String
+    let icon: String
+    var isYijing: Bool = false
 }
 
 // MARK: - 加载
@@ -38,37 +42,51 @@ final class ClassicsDatabase {
     static let shared = ClassicsDatabase()
     private init() {}
 
-    private(set) var daodejing: [DaodejingChapter] = []
-    private(set) var zhuangzi: [ZhuangziChapter] = []
+    // 典籍清单（与小程序 config.json booklist 对齐；易经为 64 卦工具，单独 tab）
+    let bookMetas: [BookMeta] = [
+        BookMeta(id: "ddj", name: "道德经", icon: "道"),
+        BookMeta(id: "zz", name: "庄子", icon: "庄"),
+        BookMeta(id: "yj", name: "易经", icon: "易", isYijing: true),
+        BookMeta(id: "lz", name: "列子", icon: "列"),
+        BookMeta(id: "tanjing", name: "坛经", icon: "坛"),
+        BookMeta(id: "jingangjing", name: "金刚经", icon: "金"),
+    ]
+
+    // 阅读类典籍 id -> 随包 Data/<file>.json
+    private let files: [String: String] = [
+        "ddj": "daodejing", "zz": "zhuangzi", "lz": "liezi",
+        "tanjing": "tanjing", "jingangjing": "jingangjing",
+    ]
+    private(set) var books: [String: [ClassicChapter]] = [:]
 
     func preload() async {
-        guard daodejing.isEmpty && zhuangzi.isEmpty else { return }
-        let (ddj, zz) = await Task.detached(priority: .userInitiated) {
-            (Self.load("daodejing", as: [DaodejingChapter].self) ?? [],
-             Self.load("zhuangzi", as: [ZhuangziChapter].self) ?? [])
+        guard books.isEmpty else { return }
+        let files = self.files
+        let loaded = await Task.detached(priority: .userInitiated) { () -> [String: [ClassicChapter]] in
+            var m: [String: [ClassicChapter]] = [:]
+            for (id, name) in files {
+                m[id] = Self.load(name, as: [ClassicChapter].self) ?? []
+            }
+            return m
         }.value
-        self.daodejing = ddj
-        self.zhuangzi = zz
+        self.books = loaded
     }
 
-    func ddjChapter(_ index: Int) -> DaodejingChapter? { daodejing.first { $0.index == index } }
-    func zzChapter(_ index: Int) -> ZhuangziChapter? { zhuangzi.first { $0.index == index } }
+    func readerBooks() -> [BookMeta] { bookMetas.filter { !$0.isYijing } }
+    func meta(_ id: String) -> BookMeta? { bookMetas.first { $0.id == id } }
+    func chapters(_ id: String) -> [ClassicChapter] { books[id] ?? [] }
+    func chapter(_ id: String, _ index: Int) -> ClassicChapter? { chapters(id).first { $0.index == index } }
 
-    func searchDaodejing(_ q: String) -> [DaodejingChapter] {
+    func search(_ id: String, _ q: String) -> [ClassicChapter] {
         let q = q.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return daodejing }
-        return daodejing.filter {
-            $0.chapter.contains(q) || $0.title.contains(q)
-            || $0.original.contains(q) || $0.translation.contains(q) || String($0.index) == q
-        }
-    }
-
-    func searchZhuangzi(_ q: String) -> [ZhuangziChapter] {
-        let q = q.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return zhuangzi }
-        return zhuangzi.filter { c in
-            c.chapter.contains(q) || c.title.contains(q)
-            || c.paragraphs.contains { $0.original.contains(q) || $0.translation.contains(q) }
+        let list = chapters(id)
+        guard !q.isEmpty else { return list }
+        return list.filter { c in
+            if c.chapter.contains(q) || (c.title ?? "").contains(q) || String(c.index) == q { return true }
+            if let ps = c.paragraphs {
+                return ps.contains { $0.original.contains(q) || $0.translation.contains(q) }
+            }
+            return (c.original ?? "").contains(q) || (c.translation ?? "").contains(q)
         }
     }
 

@@ -1,53 +1,48 @@
 // Models/Favorites.swift
-// 收藏（按 kind 分类持久化：yj 易经卦号 / ddj 道德经章 / zz 庄子篇）
+// 收藏（按 kind 分类持久化：yj 易经卦号 / 各典籍 id 章号）
 import SwiftUI
 
 @Observable
 final class FavoritesStore {
     static let shared = FavoritesStore()
 
-    private(set) var yj: [Int] = []
-    private(set) var ddj: [Int] = []
-    private(set) var zz: [Int] = []
+    // 已知收藏分类（易经 + 各阅读类典籍 id）
+    private static let kinds = ["yj", "ddj", "zz", "lz", "tanjing", "jingangjing"]
+    private var store: [String: [Int]] = [:]
 
     private init() {
-        yj = load("fav_yj")
-        ddj = load("fav_ddj")
-        zz = load("fav_zz")
+        for k in Self.kinds {
+            store[k] = (UserDefaults.standard.array(forKey: "fav_" + k) as? [Int]) ?? []
+        }
     }
 
-    func isFav(_ kind: String, _ id: Int) -> Bool { list(kind).contains(id) }
+    func ids(_ kind: String) -> [Int] { store[kind] ?? [] }
+    func isFav(_ kind: String, _ id: Int) -> Bool { (store[kind] ?? []).contains(id) }
 
     func toggle(_ kind: String, _ id: Int) {
-        var arr = list(kind)
+        var arr = store[kind] ?? []
         if let i = arr.firstIndex(of: id) { arr.remove(at: i) } else { arr.append(id) }
         save(kind, arr)
     }
 
     func remove(_ kind: String, _ id: Int) {
-        var arr = list(kind)
+        var arr = store[kind] ?? []
         arr.removeAll { $0 == id }
         save(kind, arr)
     }
 
-    private func list(_ kind: String) -> [Int] {
-        switch kind { case "ddj": return ddj; case "zz": return zz; default: return yj }
-    }
     private func save(_ kind: String, _ arr: [Int]) {
-        switch kind { case "ddj": ddj = arr; case "zz": zz = arr; default: yj = arr }
+        store[kind] = arr
         UserDefaults.standard.set(arr, forKey: "fav_" + kind)
-    }
-    private func load(_ key: String) -> [Int] {
-        (UserDefaults.standard.array(forKey: key) as? [Int]) ?? []
     }
 }
 
-// 收藏列表项（跨经典汇总，可跳转）
+// 收藏列表项（跨典籍汇总，可跳转）
 struct FavItem: Identifiable {
     let id: String        // 唯一键 e.g. "yj1"
-    let kind: String      // yj / ddj / zz
+    let kind: String      // yj / ddj / zz / lz / tanjing / jingangjing
     let refId: Int
-    let tag: String       // 易 / 道 / 庄
+    let tag: String       // 图标字
     let title: String     // 《易经》乾为天
     let sub: String       // 正文开头
 }
