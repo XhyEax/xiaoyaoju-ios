@@ -82,7 +82,7 @@ struct BookSettingsView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button { Task { await doRefresh() } } label: {
-                        Image(systemName: "arrow.clockwise")
+                        Image("IconReset").renderingMode(.template)
                     }.disabled(refreshing)
                     Button("保存") { save() }.disabled(sel.isEmpty)
                 }

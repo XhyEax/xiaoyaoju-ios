@@ -46,6 +46,7 @@ struct BookChapterView: View {
     @State private var hideAnno: Bool
     @State private var hideTrans: Bool
     @State private var fav = FavoritesStore.shared
+    @State private var selText: SelText?
 
     init(bookId: String, index: Int) {
         self.bookId = bookId
@@ -74,12 +75,15 @@ struct BookChapterView: View {
                             paragraphCard(p)
                         }
                     } else {
-                        ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""), font: .body, lineSpacing: 6)
+                        ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""), font: .body, lineSpacing: 6,
+                                    onSelect: { selText = SelText(text: $0) })
                         if let a = c.annotation, !a.isEmpty, !hideAnno {
-                            ClassicCard(a, title: "注释", copy: a, font: .footnote, color: .secondary)
+                            ClassicCard(a, title: "注释", copy: a, font: .footnote, color: .secondary,
+                                        onSelect: { selText = SelText(text: $0) })
                         }
                         if !hideTrans, let tr = c.translation, !tr.isEmpty {
-                            ClassicCard(tr, title: "译文", copy: tr, font: .body)
+                            ClassicCard(tr, title: "译文", copy: tr, font: .body,
+                                        onSelect: { selText = SelText(text: $0) })
                         }
                     }
                     Color.clear.frame(height: 8)
@@ -113,6 +117,7 @@ struct BookChapterView: View {
             )
         }
         .onAppear { db.ensureLoaded(bookId) }
+        .fullScreenCover(item: $selText) { st in SelectableTextSheet(text: st.text) }
     }
 
     private func paragraphCard(_ p: ClassicPara) -> some View {
@@ -130,7 +135,13 @@ struct BookChapterView: View {
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .textSelection(.enabled)   // 原地可选文本：长按选中正文
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = paraCopy(p)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            } label: { Label("复制", systemImage: "doc.on.doc") }
+            Button { selText = SelText(text: paraCopy(p)) } label: { Label("选择文本", systemImage: "selection.pin.in.out") }
+        }
     }
 
     private func paraCopy(_ p: ClassicPara) -> String {
