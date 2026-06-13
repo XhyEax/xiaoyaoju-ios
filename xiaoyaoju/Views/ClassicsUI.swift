@@ -50,19 +50,19 @@ struct ClassicCard: View {
 struct SelText: Identifiable { let id = UUID(); let text: String }
 
 struct SelectableTextSheet: View {
-    let text: String
+    @State private var editable: String
     @Environment(\.dismiss) private var dismiss
+    init(text: String) { _editable = State(initialValue: text) }
     var body: some View {
         NavigationStack {
-            ScrollView {
-                Text(text).textSelection(.enabled)
-                    .font(.body).lineSpacing(6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-            }
-            .navigationTitle("选择文本")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+            // 用 TextEditor(UITextView) 保证可靠的长按选中/复制；内容可编辑但仅作选取用途
+            TextEditor(text: $editable)
+                .font(.body)
+                .lineSpacing(6)
+                .padding(8)
+                .navigationTitle("选择文本")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
         }
     }
 }
