@@ -46,7 +46,6 @@ struct BookChapterView: View {
     @State private var hideAnno: Bool
     @State private var hideTrans: Bool
     @State private var fav = FavoritesStore.shared
-    @State private var selText: SelText?
 
     init(bookId: String, index: Int) {
         self.bookId = bookId
@@ -75,15 +74,15 @@ struct BookChapterView: View {
                             paragraphCard(p)
                         }
                     } else {
-                        ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""), font: .body, lineSpacing: 6,
-                                    onSelect: { selText = SelText(text: $0) })
+                        ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""),
+                                    uiFont: .preferredFont(forTextStyle: .body), lineSpacing: 6)
                         if let a = c.annotation, !a.isEmpty, !hideAnno {
-                            ClassicCard(a, title: "注释", copy: a, font: .footnote, color: .secondary,
-                                        onSelect: { selText = SelText(text: $0) })
+                            ClassicCard(a, title: "注释", copy: a,
+                                        uiFont: .preferredFont(forTextStyle: .footnote), color: .secondary)
                         }
                         if !hideTrans, let tr = c.translation, !tr.isEmpty {
-                            ClassicCard(tr, title: "译文", copy: tr, font: .body,
-                                        onSelect: { selText = SelText(text: $0) })
+                            ClassicCard(tr, title: "译文", copy: tr,
+                                        uiFont: .preferredFont(forTextStyle: .body))
                         }
                     }
                     Color.clear.frame(height: 8)
@@ -117,31 +116,24 @@ struct BookChapterView: View {
             )
         }
         .onAppear { db.ensureLoaded(bookId) }
-        .fullScreenCover(item: $selText) { st in SelectableTextSheet(text: st.text) }
     }
 
     private func paragraphCard(_ p: ClassicPara) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(o(p.original)).font(.body).lineSpacing(6)
+            ReadOnlyTextEditor(text: o(p.original), font: .preferredFont(forTextStyle: .body), lineSpacing: 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !p.annotation.isEmpty && !hideAnno {
-                Text("注：" + p.annotation).font(.footnote).foregroundStyle(.secondary).lineSpacing(3)
+                ReadOnlyTextEditor(text: "注：" + p.annotation, font: .preferredFont(forTextStyle: .footnote), color: .secondaryLabel, lineSpacing: 3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             if !hideTrans {
                 Divider()
-                Text(p.translation).foregroundStyle(.secondary).lineSpacing(3)
+                ReadOnlyTextEditor(text: p.translation, font: .preferredFont(forTextStyle: .body), color: .secondaryLabel, lineSpacing: 3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .contextMenu {
-            Button {
-                UIPasteboard.general.string = paraCopy(p)
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            } label: { Label("复制", systemImage: "doc.on.doc") }
-            Button { selText = SelText(text: paraCopy(p)) } label: { Label("选择文本", systemImage: "selection.pin.in.out") }
-        }
     }
 
     private func paraCopy(_ p: ClassicPara) -> String {

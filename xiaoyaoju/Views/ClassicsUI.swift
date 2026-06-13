@@ -11,17 +11,14 @@ struct ClassicCard: View {
     let text: String
     var title: String? = nil
     var copy: String
-    var font: Font
     var color: Color = .primary
     var lineSpacing: CGFloat = 2
-    var onSelect: ((String) -> Void)? = nil
+    var uiFont: UIFont
 
     init(_ text: String, title: String? = nil, copy: String,
-         font: Font, color: Color = .primary, lineSpacing: CGFloat = 2,
-         onSelect: ((String) -> Void)? = nil) {
+         uiFont: UIFont, color: Color = .primary, lineSpacing: CGFloat = 2) {
         self.text = text; self.title = title; self.copy = copy
-        self.font = font; self.color = color; self.lineSpacing = lineSpacing
-        self.onSelect = onSelect
+        self.uiFont = uiFont; self.color = color; self.lineSpacing = lineSpacing
     }
 
     var body: some View {
@@ -29,41 +26,11 @@ struct ClassicCard: View {
             if let title {
                 Text(title).font(.subheadline).bold().foregroundStyle(.secondary)
             }
-            Text(text).font(font).foregroundStyle(color).lineSpacing(lineSpacing)
+            ReadOnlyTextEditor(text: text, font: uiFont, color: UIColor(color), lineSpacing: lineSpacing)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .contextMenu {
-            Button {
-                UIPasteboard.general.string = copy
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            } label: { Label("复制", systemImage: "doc.on.doc") }
-            if let onSelect {
-                Button { onSelect(copy) } label: { Label("选择文本", systemImage: "selection.pin.in.out") }
-            }
-        }
-    }
-}
-
-// 选择文本：全屏可选预览页（长按菜单「选择文本」打开，供用户手动选中部分文字）
-struct SelText: Identifiable { let id = UUID(); let text: String }
-
-struct SelectableTextSheet: View {
-    @State private var editable: String
-    @Environment(\.dismiss) private var dismiss
-    init(text: String) { _editable = State(initialValue: text) }
-    var body: some View {
-        NavigationStack {
-            // 用 TextEditor(UITextView) 保证可靠的长按选中/复制；内容可编辑但仅作选取用途
-            TextEditor(text: $editable)
-                .font(.body)
-                .lineSpacing(6)
-                .padding(8)
-                .navigationTitle("选择文本")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
-        }
     }
 }
 
