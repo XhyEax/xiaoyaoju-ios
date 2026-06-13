@@ -14,14 +14,11 @@ struct ClassicCard: View {
     var font: Font
     var color: Color = .primary
     var lineSpacing: CGFloat = 2
-    var onSelect: ((String) -> Void)? = nil
 
     init(_ text: String, title: String? = nil, copy: String,
-         font: Font, color: Color = .primary, lineSpacing: CGFloat = 2,
-         onSelect: ((String) -> Void)? = nil) {
+         font: Font, color: Color = .primary, lineSpacing: CGFloat = 2) {
         self.text = text; self.title = title; self.copy = copy
         self.font = font; self.color = color; self.lineSpacing = lineSpacing
-        self.onSelect = onSelect
     }
 
     var body: some View {
@@ -34,36 +31,7 @@ struct ClassicCard: View {
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .contextMenu {
-            Button {
-                UIPasteboard.general.string = copy
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-            } label: { Label("复制", systemImage: "doc.on.doc") }
-            if let onSelect {
-                Button { onSelect(copy) } label: { Label("选中文本", systemImage: "selection.pin.in.out") }
-            }
-        }
-    }
-}
-
-// 全屏可选文本：供用户手动选中部分文字
-struct SelText: Identifiable { let id = UUID(); let text: String }
-
-struct SelectableTextSheet: View {
-    let text: String
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                Text(text).textSelection(.enabled)
-                    .font(.body).lineSpacing(6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-            }
-            .navigationTitle("选中文本")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
-        }
+        .textSelection(.enabled)   // 原地可选文本：长按选中正文
     }
 }
 
