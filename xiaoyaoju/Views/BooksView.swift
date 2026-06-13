@@ -35,6 +35,7 @@ struct BookListView: View {
 // 通用章节页（双格式自适应；注释关闭时正文去注释标号；正文 \n 原生换行）
 struct BookChapterView: View {
     let bookId: String
+    @Environment(\.dismiss) private var dismiss
     @State private var cur: Int
     @State private var hideAnno: Bool
     @State private var hideTrans: Bool
@@ -82,7 +83,16 @@ struct BookChapterView: View {
         }
         .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { ChapterShareToolbar(text: shareText) }
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    UIPasteboard.general.string = shareText
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } label: { Image(systemName: "doc.on.doc") }
+                Button { dismiss() } label: { Image(systemName: "list.bullet") } // 目录：返回书目
+                ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             ClassicBottomBar(
                 prevEnabled: cur > 1,
