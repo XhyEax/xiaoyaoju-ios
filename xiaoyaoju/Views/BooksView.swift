@@ -27,8 +27,9 @@ struct BookListView: View {
                 .padding(.vertical, 2)
             }
         }
-        .navigationTitle("《\(name)》")
+        .navigationTitle(name)
         .searchable(text: $searchText, prompt: "搜索")
+        .onAppear { db.ensureLoaded(bookId) }
     }
 }
 
@@ -106,24 +107,27 @@ struct BookChapterView: View {
                 onFav: { fav.toggle(bookId, cur) }
             )
         }
+        .onAppear { db.ensureLoaded(bookId) }
     }
 
     private func paragraphCard(_ p: ClassicPara) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(o(p.original)).font(.body).lineSpacing(6)
+                .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !p.annotation.isEmpty && !hideAnno {
                 Text("注：" + p.annotation).font(.footnote).foregroundStyle(.secondary).lineSpacing(3)
+                    .textSelection(.enabled)
             }
             if !hideTrans {
                 Divider()
                 Text(p.translation).foregroundStyle(.secondary).lineSpacing(3)
+                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .textSelection(.enabled)   // 原地可选文本：长按选中正文
     }
 
     private func paraCopy(_ p: ClassicPara) -> String {

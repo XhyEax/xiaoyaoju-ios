@@ -33,6 +33,8 @@ struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
     @State private var sel: [String] = []
+    @State private var toast: String?
+    @State private var refreshing = false
     private var db: ClassicsDatabase { .shared }
 
     var body: some View {
@@ -41,6 +43,14 @@ struct BookSettingsView: View {
                 Section(footer: Text("选择底部显示的典籍 Tab（最少 1 本，最多 3 本），按勾选先后顺序排列。")) {
                     ForEach(db.bookMetas) { b in
                         HStack(spacing: 14) {
+                            NavigationLink {
+                                bookPreview(b)
+                            } label: {
+                                Image("IconEye").renderingMode(.template).foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(width: 26)
+
                             Button { toggle(b.id) } label: {
                                 HStack(spacing: 14) {
                                     Text(b.icon).font(.title3).bold()
@@ -48,26 +58,17 @@ struct BookSettingsView: View {
                                         .frame(width: 30)
                                     Text(b.name).foregroundStyle(.primary)
                                     Spacer()
+                                    if let i = sel.firstIndex(of: b.id) {
+                                        Text("\(i + 1)").font(.caption2).foregroundStyle(.white)
+                                            .frame(width: 22, height: 22)
+                                            .background(Circle().fill(.blue))
+                                    }
+                                    Image(systemName: sel.contains(b.id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
                                 }
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-
-                            NavigationLink {
-                                bookPreview(b)
-                            } label: {
-                                Image("IconEye").renderingMode(.template).foregroundStyle(.blue)
-                            }
-                            .buttonStyle(.plain)
-                            .frame(width: 28)
-
-                            if let i = sel.firstIndex(of: b.id) {
-                                Text("\(i + 1)").font(.caption2).foregroundStyle(.white)
-                                    .frame(width: 22, height: 22)
-                                    .background(Circle().fill(.blue))
-                            }
-                            Image(systemName: sel.contains(b.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(sel.contains(b.id) ? .blue : .secondary)
                         }
                     }
                 }
@@ -76,12 +77,39 @@ struct BookSettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button { Task { await doRefresh() } } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }.disabled(refreshing)
                     Button("保存") { save() }.disabled(sel.isEmpty)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let toast {
+                    Text(toast).font(.subheadline).foregroundStyle(.white)
+                        .padding(.horizontal, 20).padding(.vertical, 12)
+                        .background(.black.opacity(0.8), in: Capsule())
+                        .padding(.bottom, 60)
                 }
             }
             .onAppear { sel = parseTabBooks(tabBooksRaw) }
         }
+    }
+
+    // 刷新：重新拉取 config.json，3 秒 toast 提示已更新/未更新
+    private func doRefresh() async {
+        if refreshing { return }
+        refreshing = true
+        let changed = await db.fetchConfig()
+        refreshing = false
+        let ids = Set(db.bookMetas.map { $0.id })
+        sel = sel.filter { ids.contains($0) }
+        showToast(changed ? "典籍列表已更新" : "未更新")
+    }
+
+    private func showToast(_ m: String) {
+        toast = m
+        Task { try? await Task.sleep(nanoseconds: 3_000_000_000); if toast == m { toast = nil } }
     }
 
     // 预览（不改配置）：易经 → 64 卦工具，其它 → 书目

@@ -27,11 +27,11 @@ struct ClassicCard: View {
                 Text(title).font(.subheadline).bold().foregroundStyle(.secondary)
             }
             Text(text).font(font).foregroundStyle(color).lineSpacing(lineSpacing)
+                .textSelection(.enabled)   // 原地可选文本：长按选中该段正文
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .textSelection(.enabled)   // 原地可选文本：长按选中正文
     }
 }
 
