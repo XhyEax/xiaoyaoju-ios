@@ -3,6 +3,12 @@
 import SwiftUI
 import UIKit
 
+/// 按阅读字号倍率缩放系统字体（详情/章节正文用）
+func scaledUIFont(_ style: UIFont.TextStyle, _ scale: Double) -> UIFont {
+    let f = UIFont.preferredFont(forTextStyle: style)
+    return f.withSize(f.pointSize * scale)
+}
+
 struct ReadOnlyTextEditor: UIViewRepresentable {
     let text: String
     var font: UIFont = .preferredFont(forTextStyle: .body)

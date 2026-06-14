@@ -14,6 +14,7 @@ struct HexagramDetailView: View {
     @State private var browseNumber: Int? = nil
     /// 「变」开关：隐藏各爻变卦（仅查卦浏览态生效），全局持久化
     @AppStorage("yj_hideBian") private var hideBian: Bool = false
+    @AppStorage("readerFontScale") private var fontScale: Double = 1.0
     @State private var fav = FavoritesStore.shared
     @State private var showGuaTOC = false
 
@@ -237,7 +238,7 @@ struct HexagramDetailView: View {
     private func sectionBlock(title: String, content: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.headline).foregroundStyle(.secondary)
-            Text(content).font(.body)
+            Text(content).font(Font(scaledUIFont(.body, fontScale)))
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -302,8 +303,8 @@ struct HexagramDetailView: View {
                                 .foregroundStyle(.red)
                         }
                     }
-                    Text(yao.content).font(.body)
-                    Text(yao.xiang).font(.footnote).foregroundStyle(.secondary)
+                    Text(yao.content).font(Font(scaledUIFont(.body, fontScale)))
+                    Text(yao.xiang).font(Font(scaledUIFont(.footnote, fontScale))).foregroundStyle(.secondary)
                 }
                 .contentShape(Rectangle())
                 .contextMenu {

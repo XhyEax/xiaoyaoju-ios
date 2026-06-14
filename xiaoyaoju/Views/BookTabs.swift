@@ -32,6 +32,7 @@ func glyphTabImage(_ s: String) -> UIImage {
 struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
+    @AppStorage("readerFontScale") private var fontScale: Double = 1.0
     @State private var sel: [String] = []
     @State private var toast: String?
     @State private var refreshing = false
@@ -40,7 +41,8 @@ struct BookSettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section(footer: Text("选择底部显示的典籍 Tab（最少 1 本，最多 3 本），按勾选先后顺序排列。")) {
+                Section(header: Text("典籍设置"),
+                        footer: Text("选择底部显示的典籍 Tab（最少 1 本，最多 3 本），按勾选先后顺序排列。")) {
                     ForEach(db.bookMetas) { b in
                         HStack(spacing: 14) {
                             NavigationLink {
@@ -72,8 +74,18 @@ struct BookSettingsView: View {
                         }
                     }
                 }
+                Section(header: Text("字体大小"), footer: Text("详情 / 章节页的正文字号")) {
+                    Picker("字体大小", selection: $fontScale) {
+                        Text("小").tag(0.85)
+                        Text("中").tag(0.92)
+                        Text("标准").tag(1.0)
+                        Text("大").tag(1.18)
+                        Text("特大").tag(1.35)
+                    }
+                    .pickerStyle(.segmented)
+                }
             }
-            .navigationTitle("典籍设置")
+            .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }

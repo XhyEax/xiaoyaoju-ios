@@ -63,6 +63,7 @@ struct BookChapterView: View {
     @State private var hideTrans: Bool
     @State private var fav = FavoritesStore.shared
     @State private var showTOC = false
+    @AppStorage("readerFontScale") private var fontScale: Double = 1.0
 
     init(bookId: String, index: Int, highlight: String = "") {
         self.bookId = bookId
@@ -149,14 +150,14 @@ struct BookChapterView: View {
                             }
                         } else {
                             ClassicCard(o(c.original ?? ""), copy: o(c.original ?? ""),
-                                        uiFont: .preferredFont(forTextStyle: .body), lineSpacing: 6, highlight: highlight).id("c0")
+                                        uiFont: scaledUIFont(.body, fontScale), lineSpacing: 6, highlight: highlight).id("c0")
                             if let a = c.annotation, !a.isEmpty, !hideAnno {
                                 ClassicCard(a, title: "注释", copy: a,
-                                            uiFont: .preferredFont(forTextStyle: .footnote), color: .secondary)
+                                            uiFont: scaledUIFont(.footnote, fontScale), color: .secondary)
                             }
                             if !hideTrans, let tr = c.translation, !tr.isEmpty {
                                 ClassicCard(tr, title: "译文", copy: tr,
-                                            uiFont: .preferredFont(forTextStyle: .body), highlight: highlight).id("ctr")
+                                            uiFont: scaledUIFont(.body, fontScale), highlight: highlight).id("ctr")
                             }
                         }
                         Color.clear.frame(height: 8)
@@ -197,15 +198,15 @@ struct BookChapterView: View {
 
     private func paragraphCard(_ p: ClassicPara) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            ReadOnlyTextEditor(text: o(p.original), font: .preferredFont(forTextStyle: .body), lineSpacing: 6, highlight: highlight)
+            ReadOnlyTextEditor(text: o(p.original), font: scaledUIFont(.body, fontScale), lineSpacing: 6, highlight: highlight)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !p.annotation.isEmpty && !hideAnno {
-                ReadOnlyTextEditor(text: "注：" + p.annotation, font: .preferredFont(forTextStyle: .footnote), color: .secondaryLabel, lineSpacing: 3)
+                ReadOnlyTextEditor(text: "注：" + p.annotation, font: scaledUIFont(.footnote, fontScale), color: .secondaryLabel, lineSpacing: 3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if !hideTrans {
                 Divider()
-                ReadOnlyTextEditor(text: p.translation, font: .preferredFont(forTextStyle: .body), color: .secondaryLabel, lineSpacing: 3, highlight: highlight)
+                ReadOnlyTextEditor(text: p.translation, font: scaledUIFont(.body, fontScale), color: .secondaryLabel, lineSpacing: 3, highlight: highlight)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
