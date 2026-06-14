@@ -331,6 +331,7 @@ struct RecordDetailView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .navigationTitle(gua.name)
                 .navigationBarTitleDisplayMode(.inline)
+                .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 4) {
@@ -431,16 +432,17 @@ struct RecordDetailView: View {
 
             Divider()
 
-            // 笔记（note）— editable, explicit save/cancel
+            // 笔记（note）— UITextView 编辑：点哪儿光标在哪儿，长文本不再被自动滚到底部
             VStack(alignment: .leading, spacing: 4) {
                 Label("笔记", systemImage: "square.and.pencil").font(.caption).foregroundStyle(.secondary)
-                TextField("点击添加笔记", text: $draftNote, axis: .vertical)
-                    .lineLimit(nil)
-                    .font(.body)
-                    .focused($noteFocused)
-                    .onChange(of: noteFocused) { _, focused in
-                        if focused { editingField = .note }
+                ZStack(alignment: .topLeading) {
+                    if draftNote.isEmpty {
+                        Text("点击添加笔记").font(.body).foregroundStyle(.tertiary)
                     }
+                    EditableTextView(text: $draftNote, editing: editingField == .note,
+                                     onFocus: { editingField = .note })
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .padding()

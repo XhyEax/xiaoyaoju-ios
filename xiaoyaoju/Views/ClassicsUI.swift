@@ -67,7 +67,6 @@ struct ClassicBottomBar: View {
             Button(action: onPrev) {
                 Text("上一章").frame(maxWidth: .infinity).padding(.vertical, 8)
             }.disabled(!prevEnabled)
-            Divider().frame(height: 18)
             HStack(spacing: 12) {
                 CircleToggle(label: "注", on: !hideAnno, action: onAnno)
                 CircleToggle(label: "译", on: !hideTrans, action: onTrans)
@@ -80,13 +79,12 @@ struct ClassicBottomBar: View {
                 }
             }
             .padding(.horizontal, 12)
-            Divider().frame(height: 18)
             Button(action: onNext) {
                 Text("下一章").frame(maxWidth: .infinity).padding(.vertical, 8)
             }.disabled(!nextEnabled)
         }
         .font(.subheadline)
-        .padding(.horizontal, 6).padding(.vertical, 6)
+        .padding(.horizontal, 6).padding(.top, 6).padding(.bottom, 14)
         .background(.bar)
         .overlay(Divider(), alignment: .top)
     }

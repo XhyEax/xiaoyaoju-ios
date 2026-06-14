@@ -4,6 +4,15 @@ import SwiftUI
 struct NotesView: View {
     private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
     @State private var showSettings = false
+    @AppStorage("appColorScheme") private var colorSchemeIndex = 0
+
+    private var colorSchemeIcon: String {
+        switch colorSchemeIndex {
+        case 1: return "sun.max.fill"
+        case 2: return "moon.stars.fill"
+        default: return "circle.lefthalf.filled"
+        }
+    }
 
     /// App 版本号（取自 Info.plist）："版本号：1.0"
     private var appVersion: String {
@@ -56,6 +65,11 @@ struct NotesView: View {
             .navigationTitle("逍遥居笔记")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { colorSchemeIndex = (colorSchemeIndex + 1) % 3 } label: {
+                        Image(systemName: colorSchemeIcon)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showSettings = true } label: {
                         Image(systemName: "slider.horizontal.3")

@@ -73,6 +73,7 @@ struct CastingContent: View {
         .animation(.easeInOut(duration: 0.2), value: editingIndex)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
         .toolbar { toolbarContent }
         .alert("已保存到记录", isPresented: $savedAlert) {
             Button("查看") { navigateToSaved = true }

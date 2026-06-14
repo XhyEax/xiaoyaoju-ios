@@ -15,6 +15,7 @@ struct HexagramDetailView: View {
     /// 「变」开关：隐藏各爻变卦（仅查卦浏览态生效），全局持久化
     @AppStorage("yj_hideBian") private var hideBian: Bool = false
     @State private var fav = FavoritesStore.shared
+    @State private var showGuaTOC = false
 
     private var db: GuaDatabase { GuaDatabase.shared }
     /// 当前显示的卦：浏览切换优先，否则为传入卦
@@ -49,7 +50,13 @@ struct HexagramDetailView: View {
         }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
         .toolbar {
+            if browseMode {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showGuaTOC = true } label: { Image(systemName: "list.bullet") } // 目录：六十四卦
+                }
+            }
             if showShareActions {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     Button {
@@ -64,6 +71,9 @@ struct HexagramDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showGuaTOC) {
+            GuaTOCSheet(current: gua.id) { n in browseNumber = n }
+        }
     }
 
     private var bottomNavBar: some View {
@@ -72,7 +82,6 @@ struct HexagramDetailView: View {
                 Text("上一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
             }
             .disabled(gua.id <= 1)
-            Divider().frame(height: 18)
             HStack(spacing: 12) {
                 Button { hideBian.toggle() } label: {
                     Text("变")
@@ -90,14 +99,13 @@ struct HexagramDetailView: View {
                 }
             }
             .padding(.horizontal, 14)
-            Divider().frame(height: 18)
             Button { if gua.id < 64 { browseNumber = gua.id + 1 } } label: {
                 Text("下一卦").frame(maxWidth: .infinity).padding(.vertical, 8)
             }
             .disabled(gua.id >= 64)
         }
         .font(.subheadline)
-        .padding(.horizontal, 6).padding(.vertical, 6)
+        .padding(.horizontal, 6).padding(.top, 6).padding(.bottom, 14)
         .background(.bar)
         .overlay(Divider(), alignment: .top)
     }
@@ -400,5 +408,38 @@ private struct MiniGuaView: View {
             }
         }
         .frame(width: totalWidth)
+    }
+}
+
+// 易经目录：六十四卦列表，点选跳转（对应小程序详情页「目录」）
+struct GuaTOCSheet: View {
+    let current: Int
+    let onPick: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+    private var db: GuaDatabase { GuaDatabase.shared }
+
+    var body: some View {
+        NavigationStack {
+            ScrollViewReader { proxy in
+                List(1...64, id: \.self) { n in
+                    if let g = db.hexagram(number: n) {
+                        Button { onPick(n); dismiss() } label: {
+                            HStack(spacing: 10) {
+                                Text(g.symbol).font(.system(size: 22))
+                                Text("\(n). \(g.name)")
+                                    .foregroundStyle(n == current ? .blue : .primary)
+                                Spacer()
+                                if n == current { Image(systemName: "checkmark").foregroundStyle(.blue) }
+                            }
+                        }
+                        .id(n)
+                    }
+                }
+                .navigationTitle("目录")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+                .onAppear { proxy.scrollTo(current, anchor: .center) }
+            }
+        }
     }
 }

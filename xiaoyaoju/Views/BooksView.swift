@@ -1,6 +1,28 @@
 // Views/BooksView.swift — 通用书目 / 通用章节（booklist 驱动，双格式自适应）
 import SwiftUI
 
+struct ChapterRoute: Hashable {
+    let bookId: String
+    let index: Int
+    let highlight: String
+}
+
+// 带路径追踪的书籍 Tab 容器，在 NavigationStack 层控制 tabBar 可见性，避免 pop 时闪烁
+struct BookTabView: View {
+    let bookId: String
+    @State private var path = NavigationPath()
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            BookListView(bookId: bookId)
+                .navigationDestination(for: ChapterRoute.self) { route in
+                    BookChapterView(bookId: route.bookId, index: route.index, highlight: route.highlight)
+                }
+        }
+        .toolbar(path.isEmpty ? .visible : .hidden, for: .tabBar)
+    }
+}
+
 // 通用书目（搜索 + 章节列表）
 struct BookListView: View {
     let bookId: String
@@ -11,9 +33,7 @@ struct BookListView: View {
 
     var body: some View {
         List(results) { c in
-            NavigationLink {
-                BookChapterView(bookId: bookId, index: c.index, highlight: searchText)
-            } label: {
+            NavigationLink(value: ChapterRoute(bookId: bookId, index: c.index, highlight: searchText)) {
                 HStack(spacing: 12) {
                     Text("\(c.index)").font(.caption).foregroundStyle(.secondary)
                         .frame(width: 28)
@@ -74,6 +94,7 @@ struct BookChapterView: View {
             }
             .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
             .navigationBarTitleDisplayMode(.inline)
+            // tabBar 可见性由外层 BookTabView 通过 NavigationPath 控制，此处不重复设置
             .sheet(isPresented: $showTOC) {
                 ChapterTOCSheet(bookId: bookId, current: cur) { idx in cur = idx; showTOC = false }
             }

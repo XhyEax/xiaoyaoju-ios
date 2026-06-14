@@ -46,7 +46,7 @@ struct MainTabView: View {
                 if meta.isYijing {
                     LookupView()
                 } else {
-                    NavigationStack { BookListView(bookId: id) }
+                    BookTabView(bookId: id)
                 }
             }
             .tabItem {
