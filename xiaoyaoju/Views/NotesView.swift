@@ -5,6 +5,12 @@ struct NotesView: View {
     private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
     @State private var showSettings = false
 
+    /// App 版本号（取自 Info.plist）："版本号：1.0"
+    private var appVersion: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        return "版本号：\(v)"
+    }
+
     var body: some View {
         NavigationStack {
             VStack {
@@ -40,6 +46,9 @@ struct NotesView: View {
                     Text("学习经典古籍，弘扬传统文化")
                         .font(.caption).foregroundStyle(.tertiary).tracking(1)
                         .padding(.top, 6)
+                    Text(appVersion)
+                        .font(.caption2).foregroundStyle(.tertiary)
+                        .padding(.top, 2)
                 }
                 .padding(.bottom, 24)
             }
