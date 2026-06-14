@@ -144,17 +144,24 @@ final class ClassicsDatabase {
             let ic = (b.icon?.isEmpty == false) ? b.icon! : String(b.name.prefix(1))
             return BookMeta(id: b.id, name: b.name, icon: ic, isYijing: b.type == "yijing")
         }
-        remoteFiles = rf
+        // remoteFiles 合并：保留旧条目（被删除的书仍可按原文件名/缓存刷新），用 config 覆盖/新增
+        for (k, v) in rf { remoteFiles[k] = v }
         if let u = cfg.update {
             update = UpdateInfo(title: u.title ?? "更新内容", content: u.content ?? "", version: u.version ?? 0)
         }
         let sig: ([BookMeta]) -> String = { ms in
             ms.map { "\($0.id)|\($0.name)|\($0.icon)|\($0.isYijing)" }.joined(separator: ",")
         }
-        let changed = sig(bookMetas) != sig(metas)
-        bookMetas = metas
-        if let d = try? JSONEncoder().encode(metas) { UserDefaults.standard.set(d, forKey: "cfgBooklist") }
-        for m in metas where !m.isYijing { ensureLoaded(m.id) }
+        // 合并 booklist：更新已有 + 追加新增；config 删除的本地保留（本地已有缓存）
+        var merged = bookMetas
+        for m in metas {
+            if let i = merged.firstIndex(where: { $0.id == m.id }) { merged[i] = m }
+            else { merged.append(m) }
+        }
+        let changed = sig(bookMetas) != sig(merged)
+        bookMetas = merged
+        if let d = try? JSONEncoder().encode(merged) { UserDefaults.standard.set(d, forKey: "cfgBooklist") }
+        for m in merged where !m.isYijing { ensureLoaded(m.id) }
         return changed
     }
 

@@ -70,8 +70,9 @@ struct RecordsView: View {
                 if seg == 0 {
                     FavoritesView()
                 } else {
+                    // 搜索框固定置于「收藏/历史」分段控件下方（不放进导航栏，切换页面位置一致）
+                    if !records.isEmpty { historySearchBar }
                     recordsContent
-                        .searchable(text: $searchText, prompt: "搜索问题、记录或卦名")
                 }
             }
             .navigationTitle(seg == 0 ? "收藏" : (editMode.isEditing ? "已选 \(selection.count) 条" : "历史记录"))
@@ -99,6 +100,25 @@ struct RecordsView: View {
                 Button("好的", role: .cancel) {}
             }
         }
+    }
+
+    // 历史页搜索框：置于分段控件下方
+    private var historySearchBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.subheadline)
+            TextField("搜索问题、记录或卦名", text: $searchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal).padding(.bottom, 6)
     }
 
     // 历史记录内容（列表 / 空态）

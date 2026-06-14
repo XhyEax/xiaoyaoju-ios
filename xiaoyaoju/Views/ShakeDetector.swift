@@ -55,6 +55,8 @@ final class ShakeDetector {
     /// Begin listening. Call `stop()` when leaving the view.
     func start(onShake: @escaping () -> Void) {
         self.onShake = onShake
+        // 在 Mac 上运行（Designed for iPad / Catalyst）无加速度计，CoreMotion 不可靠，跳过以避免崩溃
+        if ProcessInfo.processInfo.isiOSAppOnMac || ProcessInfo.processInfo.isMacCatalystApp { return }
         guard manager.isAccelerometerAvailable else { return }
         manager.accelerometerUpdateInterval = 1.0 / 50.0   // 50 Hz
         manager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in

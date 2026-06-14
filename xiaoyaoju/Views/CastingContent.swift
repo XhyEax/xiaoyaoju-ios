@@ -22,6 +22,8 @@ struct CastingContent: View {
     @State private var lastAddWasShake = false
 
     private var methodName: String { lastAddWasShake ? "手机起卦" : "铜钱起卦" }
+    /// 是否在 Mac 上运行（无加速度计，摇一摇不可用 → 改为点击出爻）
+    private var isMac: Bool { ProcessInfo.processInfo.isiOSAppOnMac || ProcessInfo.processInfo.isMacCatalystApp }
 
     private var db: GuaDatabase { GuaDatabase.shared }
     private var cast: Cast? { collectedLines.count == 6 ? Cast(lines: collectedLines) : nil }
@@ -140,32 +142,39 @@ struct CastingContent: View {
 
     // MARK: - Shake Toggle
 
+    @ViewBuilder
     private var shakeToggle: some View {
-        Button {
-            shakeEnabled.toggle()
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: "iphone.gen3.radiowaves.left.and.right")
-                    .font(.system(size: 40))
-                    .foregroundStyle(shakeEnabled ? Color.accentColor : .secondary)
-                    .symbolEffect(.variableColor.iterative, isActive: shakeEnabled)
-                Text("爻一爻")
-                    .font(.subheadline).bold()
-                    .foregroundStyle(shakeEnabled ? Color.accentColor : .secondary)
-                Text("一念存疑，卦解天机")
-                    .font(.caption2).foregroundStyle(.secondary)
+        if isMac {
+            // Mac 无加速度计：「爻一爻」改为点击一次随机出一爻（按下蓝→灰反馈）
+            Button { handleShake() } label: { EmptyView() }
+                .buttonStyle(MacCastButtonStyle())
+        } else {
+            Button {
+                shakeEnabled.toggle()
+            } label: {
+                VStack(spacing: 8) {
+                    Image(systemName: "iphone.gen3.radiowaves.left.and.right")
+                        .font(.system(size: 40))
+                        .foregroundStyle(shakeEnabled ? Color.accentColor : .secondary)
+                        .symbolEffect(.variableColor.iterative, isActive: shakeEnabled)
+                    Text("爻一爻")
+                        .font(.subheadline).bold()
+                        .foregroundStyle(shakeEnabled ? Color.accentColor : .secondary)
+                    Text("一念存疑，卦解天机")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    (shakeEnabled ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.06)),
+                    in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(shakeEnabled ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1.5)
+                )
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(
-                (shakeEnabled ? Color.accentColor.opacity(0.1) : Color.secondary.opacity(0.06)),
-                in: RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(shakeEnabled ? Color.accentColor.opacity(0.5) : .clear, lineWidth: 1.5)
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Bottom Input Panel
@@ -456,5 +465,27 @@ struct CastingContent: View {
         case 5: return "上\(yy)"
         default: return "\(yy)\(["", "二", "三", "四", "五"][i])"
         }
+    }
+}
+
+// Mac「爻一爻」按钮样式：常态蓝、按下变灰，作为点击出爻的反馈
+private struct MacCastButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let c = configuration.isPressed ? Color.secondary : Color.accentColor
+        return VStack(spacing: 8) {
+            Image(systemName: "hand.tap")
+                .font(.system(size: 40)).foregroundStyle(c)
+            Text("爻一爻").font(.subheadline).bold().foregroundStyle(c)
+            Text("点击随机出一爻").font(.caption2).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            (configuration.isPressed ? Color.secondary.opacity(0.06) : Color.accentColor.opacity(0.1)),
+            in: RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(configuration.isPressed ? Color.clear : Color.accentColor.opacity(0.5), lineWidth: 1.5)
+        )
     }
 }
