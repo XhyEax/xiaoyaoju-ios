@@ -4,15 +4,8 @@ import SwiftData
 
 @main
 struct xiaoyaojuApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([CastRecord.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        do {
-            return try ModelContainer(for: schema, configurations: [config])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    // 历史记录走 App Group 共享库（与 liuyao 互通）
+    var sharedModelContainer: ModelContainer = SharedStore.makeContainer()
 
     var body: some Scene {
         WindowGroup {

@@ -58,6 +58,59 @@ struct BookChapterView: View {
     private func o(_ s: String) -> String { hideAnno ? stripMarks(s) : s }
 
     var body: some View {
+        // iPad 横屏（宽 ≥ 1000）：左目录栏 + 右正文双栏，参照 book.html 桌面布局
+        GeometryReader { geo in
+            let wide = geo.size.width >= 1000
+            Group {
+                if wide {
+                    HStack(spacing: 0) {
+                        chapterSidebar
+                        Divider()
+                        readingPane
+                    }
+                } else {
+                    readingPane
+                }
+            }
+            .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showTOC) {
+                ChapterTOCSheet(bookId: bookId, current: cur) { idx in cur = idx; showTOC = false }
+            }
+            .toolbar {
+                // 宽屏有常驻侧栏目录，隐藏顶部「目录」按钮
+                if !wide {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button { showTOC = true } label: { Image(systemName: "list.bullet") } // 目录：章节列表
+                    }
+                }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    Button {
+                        UIPasteboard.general.string = shareText
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    } label: { Image(systemName: "doc.on.doc") }
+                    ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }
+                }
+            }
+            .safeAreaInset(edge: .bottom) {
+                ClassicBottomBar(
+                    prevEnabled: cur > 1,
+                    nextEnabled: cur < list.count,
+                    hideAnno: hideAnno, hideTrans: hideTrans,
+                    isFav: fav.isFav(bookId, cur),
+                    onPrev: { if cur > 1 { cur -= 1 } },
+                    onNext: { if cur < list.count { cur += 1 } },
+                    onAnno: { hideAnno.toggle(); UserDefaults.standard.set(hideAnno, forKey: bookId + "_hideAnno") },
+                    onTrans: { hideTrans.toggle(); UserDefaults.standard.set(hideTrans, forKey: bookId + "_hideTrans") },
+                    onFav: { fav.toggle(bookId, cur) }
+                )
+            }
+            .onAppear { db.ensureLoaded(bookId) }
+        }
+    }
+
+    // 正文区：随内容滚动，版心居中并限宽，避免 iPad 上行宽过长
+    private var readingPane: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 if let c = chapter {
@@ -88,42 +141,37 @@ struct BookChapterView: View {
                         Color.clear.frame(height: 8)
                     }
                     .padding()
+                    .frame(maxWidth: 760, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .onAppear { scrollToMatch(proxy) }
             .onChange(of: cur) { _, _ in proxy.scrollTo("top", anchor: .top) } // 翻页后回到顶部
         }
-        .navigationTitle(chapter?.chapter ?? (db.meta(bookId)?.name ?? "典籍"))
-        .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showTOC) {
-            ChapterTOCSheet(bookId: bookId, current: cur) { idx in cur = idx; showTOC = false }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button { showTOC = true } label: { Image(systemName: "list.bullet") } // 目录：章节列表
+    }
+
+    // 左侧目录栏（宽屏常驻）：点选章节即切换，当前章高亮并居中
+    private var chapterSidebar: some View {
+        ScrollViewReader { proxy in
+            List(list) { c in
+                Button { if c.index != cur { cur = c.index } } label: {
+                    HStack {
+                        Text(c.chapter)
+                            .foregroundStyle(c.index == cur ? Color.accentColor : .primary)
+                            .lineLimit(1)
+                        Spacer()
+                        if c.index == cur {
+                            Image(systemName: "checkmark").font(.caption).foregroundStyle(.tint)
+                        }
+                    }
+                }
+                .id(c.index)
             }
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button {
-                    UIPasteboard.general.string = shareText
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                } label: { Image(systemName: "doc.on.doc") }
-                ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }
-            }
+            .listStyle(.plain)
+            .frame(width: 300)
+            .onAppear { proxy.scrollTo(cur, anchor: .center) }
+            .onChange(of: cur) { _, v in withAnimation { proxy.scrollTo(v, anchor: .center) } }
         }
-        .safeAreaInset(edge: .bottom) {
-            ClassicBottomBar(
-                prevEnabled: cur > 1,
-                nextEnabled: cur < list.count,
-                hideAnno: hideAnno, hideTrans: hideTrans,
-                isFav: fav.isFav(bookId, cur),
-                onPrev: { if cur > 1 { cur -= 1 } },
-                onNext: { if cur < list.count { cur += 1 } },
-                onAnno: { hideAnno.toggle(); UserDefaults.standard.set(hideAnno, forKey: bookId + "_hideAnno") },
-                onTrans: { hideTrans.toggle(); UserDefaults.standard.set(hideTrans, forKey: bookId + "_hideTrans") },
-                onFav: { fav.toggle(bookId, cur) }
-            )
-        }
-        .onAppear { db.ensureLoaded(bookId) }
     }
 
     private func paragraphCard(_ p: ClassicPara) -> some View {

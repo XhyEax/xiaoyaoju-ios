@@ -16,7 +16,7 @@ struct LookupView: View {
                             NavigationLink {
                                 ManualInputView()
                             } label: {
-                                Label("手动点选六爻查询", systemImage: "hand.tap")
+                                Label("点选六爻查卦", systemImage: "hand.tap")
                                     .foregroundStyle(.blue)
                             }
                         }

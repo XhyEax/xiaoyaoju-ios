@@ -108,7 +108,7 @@ struct RecordsView: View {
             if records.isEmpty {
                 ContentUnavailableView("暂无记录",
                     systemImage: "doc.text.magnifyingglass",
-                    description: Text("在「易经 → 手动点选六爻」完成并保存后，卦例将出现在这里"))
+                    description: Text("在「易经 → 点选六爻」完成并保存后，卦例将出现在这里"))
             } else if filteredRecords.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
@@ -396,12 +396,15 @@ struct RecordDetailView: View {
                     }
             }
 
-            // 动爻 — read-only, same content as exported text
-            if !movingYaoLines.isEmpty {
+            // 动爻 — 标题含动爻数 + 断卦提示；爻辞只读但可长按选中/复制
+            if record.lineValues.count == 6 {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("动爻", systemImage: "arrow.left.arrow.right").font(.caption).foregroundStyle(.secondary)
-                    ForEach(Array(movingYaoLines.enumerated()), id: \.offset) { _, line in
-                        Text(line).font(.footnote)
+                    Label("\(movingCount)动爻：\(movingHint)", systemImage: "arrow.left.arrow.right")
+                        .font(.caption).foregroundStyle(.secondary)
+                    // 从上往下显示（上爻→初爻），与卦象画法一致
+                    ForEach(Array(movingYaoLines.enumerated().reversed()), id: \.offset) { _, line in
+                        ReadOnlyTextEditor(text: line, font: .preferredFont(forTextStyle: .footnote), lineSpacing: 2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
@@ -460,6 +463,22 @@ struct RecordDetailView: View {
         editingField = nil
         transcriptFocused = false
         noteFocused = false
+    }
+
+    /// 动爻数量（0~6）
+    private var movingCount: Int { cast?.movingLineIndexes.count ?? 0 }
+
+    /// 动爻数量对应的断卦提示
+    private var movingHint: String {
+        switch movingCount {
+        case 0: return "看本卦。"
+        case 1: return "看本卦动爻。"
+        case 2: return "看本卦动爻，上爻主，下爻辅。"
+        case 3: return "结合本卦变卦。"
+        case 4: return "看变卦不动爻，下爻主，上爻辅。"
+        case 5: return "看变卦不动爻。"
+        default: return "看变卦。"
+        }
     }
 
     /// 动爻文本行（与导出文本一致，但不含「动爻：」标题）
