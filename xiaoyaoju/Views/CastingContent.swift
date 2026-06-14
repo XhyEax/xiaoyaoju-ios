@@ -73,7 +73,7 @@ struct CastingContent: View {
         .animation(.easeInOut(duration: 0.2), value: editingIndex)
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
+        // tabBar 隐藏由所属 NavigationStack 按 path 统一控制（易经 Tab 下此页为 push 态）
         .toolbar { toolbarContent }
         .alert("已保存到记录", isPresented: $savedAlert) {
             Button("查看") { navigateToSaved = true }
@@ -122,7 +122,8 @@ struct CastingContent: View {
                 slots: previewSlots,
                 movingIndexes: cast?.movingLineIndexes ?? [],
                 showLabels: true,
-                lineWidth: 88,
+                lineWidth: 130,   // 宽线，对齐小程序 264rpx 比例
+                lineSpacing: 4,   // 顶部六爻行距
                 activeIndex: activeIndex < 6 ? activeIndex : nil,
                 onTapLine: { i in
                     // Tap a filled line to enter edit mode for it
@@ -337,7 +338,7 @@ struct CastingContent: View {
 
     private func singleGuaDisplay(gua: Hexagram, lv: [Int]) -> some View {
         VStack(spacing: 10) {
-            HexagramLinesView(lineValues: lv, lineWidth: 88).frame(maxWidth: .infinity)
+            HexagramLinesView(lineValues: lv, lineWidth: 130, lineSpacing: 4).frame(maxWidth: .infinity)
             HStack(spacing: 8) {
                 Text(gua.symbol).font(.system(size: 36))
                 VStack(alignment: .leading) {

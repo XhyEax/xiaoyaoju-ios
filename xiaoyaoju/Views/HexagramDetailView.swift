@@ -19,6 +19,10 @@ struct HexagramDetailView: View {
     @State private var showGuaTOC = false
 
     private var db: GuaDatabase { GuaDatabase.shared }
+    /// 双卦（本卦/变卦）每列爻线宽度，随阅读字号缩放（基准 80，两列并排需留窄）
+    private var guaLineWidth: CGFloat { 80 * CGFloat(fontScale) }
+    /// 单卦爻线宽度，随阅读字号缩放（基准 130，对齐小程序 264rpx 的宽线比例）
+    private var singleLineWidth: CGFloat { 130 * CGFloat(fontScale) }
     /// 当前显示的卦：浏览切换优先，否则为传入卦
     private var gua: Hexagram { browseNumber.flatMap { db.hexagram(number: $0) } ?? hexagram }
     /// 仅在「查卦」浏览（无六爻值）时显示上一卦/下一卦
@@ -51,7 +55,7 @@ struct HexagramDetailView: View {
         }
         .navigationTitle(gua.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
+        // tabBar 隐藏由所属 NavigationStack（LookupView / RecordsView）按 path 统一控制
         .toolbar {
             if browseMode {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -175,17 +179,22 @@ struct HexagramDetailView: View {
                 dualGuaCard(lv: lv, bianLv: bianLv, bian: bian)
             } else {
                 // ── Single hexagram ──
-                HexagramLinesView(lineValues: lv, movingIndexes: movingIndexes)
+                HexagramLinesView(lineValues: lv, movingIndexes: movingIndexes, lineWidth: singleLineWidth)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 4)
             }
+        } else {
+            // ── 浏览态（无六爻值）：按卦本身阴阳结构显示大卦象 ──
+            HexagramLinesView(lineValues: baseYangLines.map { $0 ? 7 : 8 }, lineWidth: singleLineWidth)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 4)
         }
     }
 
     private func dualGuaCard(lv: [Int], bianLv: [Int], bian: Hexagram) -> some View {
         VStack(spacing: 12) {
             // Column headers
-            DualGuaView.alignedRow(lineWidth: 80) {
+            DualGuaView.alignedRow(lineWidth: guaLineWidth) {
                 Text("本卦").font(.caption).foregroundStyle(.secondary)
             } right: {
                 Text("变卦").font(.caption).foregroundStyle(.blue)
@@ -196,10 +205,10 @@ struct HexagramDetailView: View {
                 benValues: lv,
                 bianValues: bianLv,
                 movingIndexes: movingIndexes,
-                lineWidth: 80)
+                lineWidth: guaLineWidth)
 
             // Names row — 变卦 side is tappable
-            DualGuaView.alignedRow(lineWidth: 80) {
+            DualGuaView.alignedRow(lineWidth: guaLineWidth) {
                 VStack(spacing: 3) {
                     Text(gua.symbol).font(.system(size: 28))
                     Text(gua.name).font(.caption).bold()

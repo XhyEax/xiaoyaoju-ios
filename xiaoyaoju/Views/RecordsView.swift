@@ -39,6 +39,7 @@ struct RecordsView: View {
     @State private var exportDocument: RecordsJSONDocument?
     @State private var transferAlert: String?
     @State private var seg = 0   // 0=收藏 1=历史
+    @State private var path = NavigationPath()
 
     private var db: GuaDatabase { GuaDatabase.shared }
 
@@ -58,7 +59,7 @@ struct RecordsView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 Picker("", selection: $seg) {
                     Text("收藏").tag(0)
@@ -74,6 +75,16 @@ struct RecordsView: View {
                     if !records.isEmpty { historySearchBar }
                     recordsContent
                 }
+            }
+            // 收藏页可跳转：历史记录详情 / 易经卦象 / 典籍章节，全部 value-based 以便 path 追踪
+            .navigationDestination(for: CastRecord.self) { RecordDetailView(record: $0) }
+            .navigationDestination(for: GuaRoute.self) { route in
+                if let g = db.hexagram(number: route.number) {
+                    HexagramDetailView(hexagram: g, showShareActions: true)
+                }
+            }
+            .navigationDestination(for: ChapterRoute.self) { route in
+                BookChapterView(bookId: route.bookId, index: route.index, highlight: route.highlight)
             }
             .navigationTitle(seg == 0 ? "收藏" : (editMode.isEditing ? "已选 \(selection.count) 条" : "历史记录"))
             .navigationBarTitleDisplayMode(.inline)
@@ -100,6 +111,8 @@ struct RecordsView: View {
                 Button("好的", role: .cancel) {}
             }
         }
+        // tabBar 可见性随导航深度同步切换，避免 pop 时 tabBar 延迟出现的闪烁
+        .toolbar(path.isEmpty ? .visible : .hidden, for: .tabBar)
     }
 
     // 历史页搜索框：置于分段控件下方
@@ -134,9 +147,7 @@ struct RecordsView: View {
             } else {
                 List(selection: $selection) {
                     ForEach(filteredRecords) { record in
-                        NavigationLink {
-                            RecordDetailView(record: record)
-                        } label: {
+                        NavigationLink(value: record) {
                             recordRow(record)
                         }
                     }
@@ -331,7 +342,7 @@ struct RecordDetailView: View {
                 .scrollDismissesKeyboard(.interactively)
                 .navigationTitle(gua.name)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar(.hidden, for: .tabBar)   // 详情页隐藏底部 TabBar
+                // tabBar 隐藏由外层 RecordsView 的 NavigationStack 按 path 统一控制
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         HStack(spacing: 4) {

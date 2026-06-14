@@ -17,21 +17,23 @@ struct HexagramLinesView: View {
     // MARK: Convenience inits
 
     init(lineValues: [Int], movingIndexes: [Int] = [], showLabels: Bool = false,
-         lineWidth: CGFloat = 80, activeIndex: Int? = nil, onTapLine: ((Int) -> Void)? = nil) {
+         lineWidth: CGFloat = 80, lineSpacing: CGFloat = 8, activeIndex: Int? = nil, onTapLine: ((Int) -> Void)? = nil) {
         self.slots = lineValues.map { Optional($0) }
         self.movingIndexes = movingIndexes
         self.showLabels = showLabels
         self.lineWidth = lineWidth
+        self.lineSpacing = lineSpacing
         self.activeIndex = activeIndex
         self.onTapLine = onTapLine
     }
 
     init(slots: [Int?], movingIndexes: [Int] = [], showLabels: Bool = false,
-         lineWidth: CGFloat = 80, activeIndex: Int? = nil, onTapLine: ((Int) -> Void)? = nil) {
+         lineWidth: CGFloat = 80, lineSpacing: CGFloat = 8, activeIndex: Int? = nil, onTapLine: ((Int) -> Void)? = nil) {
         self.slots = slots
         self.movingIndexes = movingIndexes
         self.showLabels = showLabels
         self.lineWidth = lineWidth
+        self.lineSpacing = lineSpacing
         self.activeIndex = activeIndex
         self.onTapLine = onTapLine
     }
@@ -58,7 +60,8 @@ struct HexagramLinesView: View {
             if showLabels {
                 Text(yaoName(i))
                     .font(.caption2).foregroundStyle(isActive ? Color.accentColor : Color.secondary)
-                    .frame(width: 28, alignment: .trailing)
+                    .lineLimit(1).fixedSize()
+                    .frame(width: 42, alignment: .trailing)
             }
 
             yaoLine(isYang: isYang, isMoving: isMoving && filled, color: color)
@@ -69,6 +72,7 @@ struct HexagramLinesView: View {
                     Text(yaoTitle(index: i, value: v))
                         .font(.caption2)
                         .foregroundStyle(isMoving ? .red : .secondary)
+                        .lineLimit(1).fixedSize()
                         .frame(width: 42, alignment: .leading)
                 } else {
                     Color.clear.frame(width: 42, height: 10)

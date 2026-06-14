@@ -36,39 +36,38 @@ struct FavoritesView: View {
             } else {
                 List {
                     ForEach(items) { it in
-                        NavigationLink {
-                            destination(it)
-                        } label: {
-                            HStack(spacing: 12) {
-                                Text(it.tag).font(.system(size: 15)).foregroundStyle(.blue)
-                                    .frame(width: 26)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(it.title)
-                                    Text(it.sub).font(.caption).foregroundStyle(.secondary)
-                                        .lineLimit(1).truncationMode(.tail)
-                                }
+                        favLink(it)
+                            .swipeActions {
+                                Button(role: .destructive) {
+                                    fav.remove(it.kind, it.refId)
+                                } label: { Label("删除", systemImage: "trash") }
                             }
-                            .padding(.vertical, 2)
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) {
-                                fav.remove(it.kind, it.refId)
-                            } label: { Label("删除", systemImage: "trash") }
-                        }
                     }
                 }
             }
         }
     }
 
+    // value-based 跳转：易经 → 卦象详情；典籍 → 章节页。由外层 RecordsView 的 path 统一追踪以控制 tabBar
     @ViewBuilder
-    private func destination(_ it: FavItem) -> some View {
+    private func favLink(_ it: FavItem) -> some View {
         if it.kind == "yj" {
-            if let g = gua.hexagram(number: it.refId) {
-                HexagramDetailView(hexagram: g, showShareActions: true)
-            }
+            NavigationLink(value: GuaRoute(number: it.refId)) { rowLabel(it) }
         } else {
-            BookChapterView(bookId: it.kind, index: it.refId)
+            NavigationLink(value: ChapterRoute(bookId: it.kind, index: it.refId, highlight: "")) { rowLabel(it) }
         }
+    }
+
+    private func rowLabel(_ it: FavItem) -> some View {
+        HStack(spacing: 12) {
+            Text(it.tag).font(.system(size: 15)).foregroundStyle(.blue)
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(it.title)
+                Text(it.sub).font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.tail)
+            }
+        }
+        .padding(.vertical, 2)
     }
 }

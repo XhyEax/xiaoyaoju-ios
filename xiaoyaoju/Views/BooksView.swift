@@ -7,6 +7,14 @@ struct ChapterRoute: Hashable {
     let highlight: String
 }
 
+// 易经卦象详情路由（查卦/收藏跳转用，showShareActions: true）
+struct GuaRoute: Hashable {
+    let number: Int
+}
+
+// 「点选六爻」起卦页路由（易经 Tab 用）
+struct CastInputRoute: Hashable {}
+
 // 带路径追踪的书籍 Tab 容器，在 NavigationStack 层控制 tabBar 可见性，避免 pop 时闪烁
 struct BookTabView: View {
     let bookId: String
