@@ -18,7 +18,6 @@ final class FavoritesStore {
 
     func ids(_ kind: String) -> [Int] { store[kind] ?? [] }
     func isFav(_ kind: String, _ id: Int) -> Bool { (store[kind] ?? []).contains(id) }
-    var isEmpty: Bool { store.values.allSatisfy { $0.isEmpty } }
 
     func toggle(_ kind: String, _ id: Int) {
         var arr = store[kind] ?? []

@@ -2,7 +2,6 @@
 import SwiftUI
 
 struct NotesView: View {
-    var preview = false   // 预览/审核模式：隐藏右上角眼睛与设置
     private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
     @State private var showSettings = false
     @AppStorage("appColorScheme") private var colorSchemeIndex = 0
@@ -80,19 +79,17 @@ struct NotesView: View {
                         Image(systemName: colorSchemeIcon)
                     }
                 }
-                if !preview {
-                    ToolbarItemGroup(placement: .navigationBarTrailing) {
-                        // 阅读模式：眼睛，置于设置左边
-                        Button {
-                            hideNotes.toggle()
-                            showReadingToast(hideNotes ? "阅读模式已开启，只显示原文" : "阅读模式已关闭")
-                        } label: {
-                            Image("IconEye").renderingMode(.template)
-                                .foregroundStyle(hideNotes ? Color.accentColor : .secondary)
-                        }
-                        Button { showSettings = true } label: {
-                            Image(systemName: "slider.horizontal.3")
-                        }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    // 阅读模式：眼睛，置于设置左边
+                    Button {
+                        hideNotes.toggle()
+                        showReadingToast(hideNotes ? "阅读模式已开启，只显示原文" : "阅读模式已关闭")
+                    } label: {
+                        Image("IconEye").renderingMode(.template)
+                            .foregroundStyle(hideNotes ? Color.accentColor : .secondary)
+                    }
+                    Button { showSettings = true } label: {
+                        Image(systemName: "slider.horizontal.3")
                     }
                 }
             }
