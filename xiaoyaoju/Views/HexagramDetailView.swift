@@ -9,6 +9,8 @@ struct HexagramDetailView: View {
     var lineValues: [Int]? = nil
     /// 起卦结果详情显示右上角「复制 / 分享」（查卦、记录内嵌时不显示，避免与外层工具栏重复）
     var showShareActions: Bool = false
+    /// 从笔记列表跳转时定位的小节（如 "12-yao3" / "12-judgment"）
+    var initialAnchor: String? = nil
 
     /// 浏览态（查卦）下用「上一卦/下一卦」切换显示的卦；nil 时即传入的 hexagram
     @State private var browseNumber: Int? = nil
@@ -16,6 +18,8 @@ struct HexagramDetailView: View {
     @AppStorage("yj_hideBian") private var hideBian: Bool = false
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
     @State private var fav = FavoritesStore.shared
+    @State private var notes = NotesStore.shared
+    @State private var noteTarget: NoteTarget?
     @State private var showGuaTOC = false
 
     private var db: GuaDatabase { GuaDatabase.shared }
@@ -39,16 +43,19 @@ struct HexagramDetailView: View {
     }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
                 hexagramLinesSection
-                sectionBlock(title: "卦辞", content: gua.desc)
-                sectionBlock(title: "大象传", content: gua.xiangyue)
+                sectionBlock(title: "卦辞", content: gua.desc, section: "judgment")
+                sectionBlock(title: "大象传", content: gua.xiangyue, section: "image")
                 yaoAndBianSection
             }
             .padding()
+            .dismissTextSelectionOnTap()
         }
+        .onAppear { scrollToAnchor(proxy) }
         // 底部翻页栏：上一卦 / 变 收藏 / 下一卦；TabBar 常驻显示在其下方，二者都不隐藏
         .safeAreaInset(edge: .bottom) {
             if browseMode { bottomNavBar }
@@ -79,6 +86,14 @@ struct HexagramDetailView: View {
         .sheet(isPresented: $showGuaTOC) {
             GuaTOCSheet(current: gua.id) { n in browseNumber = n }
         }
+        .sheet(item: $noteTarget) { t in NoteEditorSheet(kind: t.kind, noteKey: t.key) }
+        }
+    }
+
+    // 笔记列表跳转：滚动到对应小节（卦辞/大象传/某爻）
+    private func scrollToAnchor(_ proxy: ScrollViewProxy) {
+        guard let a = initialAnchor else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { withAnimation { proxy.scrollTo(a, anchor: .center) } }
     }
 
     private var bottomNavBar: some View {
@@ -244,20 +259,25 @@ struct HexagramDetailView: View {
 
     // MARK: - Text sections
 
-    private func sectionBlock(title: String, content: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.headline).foregroundStyle(.secondary)
-            Text(content).font(Font(scaledUIFont(.body, fontScale)))
+    private func sectionBlock(title: String, content: String, section: String) -> some View {
+        let key = "\(gua.id)-\(section)"
+        let note = notes.get("yj", key)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title).font(.headline).foregroundStyle(.secondary)
+                Spacer()
+                NotePencil { noteTarget = NoteTarget(kind: "yj", key: key) }
+            }
+            ReadOnlyTextEditor(text: content, font: scaledUIFont(.body, fontScale), lineSpacing: 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !note.isEmpty {
+                NoteDisplay(text: note, fontScale: fontScale) { noteTarget = NoteTarget(kind: "yj", key: key) }
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .contentShape(Rectangle())
-        .contextMenu {
-            Button { copyToClipboard(content) } label: {
-                Label("复制", systemImage: "doc.on.doc")
-            }
-        }
+        .id(key)
     }
 
     private func copyToClipboard(_ text: String) {
@@ -286,6 +306,8 @@ struct HexagramDetailView: View {
         let isMoving = movingIndexes.contains(idx)
         let changedNum = singleChangedGuaNumber(flipping: idx)
         let changedGua = changedNum.flatMap { db.hexagram(number: $0) }
+        let noteKey = "\(gua.id)-yao\(idx)"
+        let yaoNote = notes.get("yj", noteKey)
 
         VStack(alignment: .leading, spacing: 8) {
             // Mini comparison + yao title
@@ -302,27 +324,28 @@ struct HexagramDetailView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(yao.title).font(.subheadline).bold()
-                            .foregroundStyle(isMoving ? .red : .primary)
+                    // 爻题 + 爻辞合并为一个可选中文本（如「上九：亢龙有悔。」）
+                    HStack(alignment: .top, spacing: 6) {
+                        ReadOnlyTextEditor(text: "\(yao.title)\n\(yao.content)",
+                                           font: scaledUIFont(.body, fontScale),
+                                           color: isMoving ? .systemRed : .label)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         if isMoving {
                             Text("动").font(.caption2)
                                 .padding(.horizontal, 5).padding(.vertical, 1)
                                 .background(.red.opacity(0.15), in: Capsule())
                                 .foregroundStyle(.red)
                         }
+                        NotePencil { noteTarget = NoteTarget(kind: "yj", key: noteKey) }
                     }
-                    Text(yao.content).font(Font(scaledUIFont(.body, fontScale)))
-                    Text(yao.xiang).font(Font(scaledUIFont(.footnote, fontScale))).foregroundStyle(.secondary)
+                    ReadOnlyTextEditor(text: yao.xiang, font: scaledUIFont(.footnote, fontScale), color: .secondaryLabel)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .contentShape(Rectangle())
-                .contextMenu {
-                    Button {
-                        copyToClipboard("\(yao.title)：\(yao.content)\n象曰：\(yao.xiang)")
-                    } label: {
-                        Label("复制", systemImage: "doc.on.doc")
-                    }
-                }
+            }
+
+            // 笔记：整行显示于爻辞下方、变卦行之上（与 book.html 一致）
+            if !yaoNote.isEmpty {
+                NoteDisplay(text: yaoNote, fontScale: fontScale) { noteTarget = NoteTarget(kind: "yj", key: noteKey) }
             }
 
             // 变卦 row — tappable NavigationLink
@@ -361,6 +384,7 @@ struct HexagramDetailView: View {
         .padding(.horizontal, 4)
         .background(isMoving ? .red.opacity(0.04) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .id(noteKey)
     }
 
     // MARK: - Helpers

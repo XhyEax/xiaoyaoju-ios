@@ -9,6 +9,21 @@ func scaledUIFont(_ style: UIFont.TextStyle, _ scale: Double) -> UIFont {
     return f.withSize(f.pointSize * scale)
 }
 
+extension View {
+    /// 点击空白处取消正文文本选中（收起当前 UITextView 第一响应者）。
+    /// 作为背景层，仅捕获卡片之间/留白处的点按，不影响文字本身的选中手势。
+    func dismissTextSelectionOnTap() -> some View {
+        background(
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+        )
+    }
+}
+
 struct ReadOnlyTextEditor: UIViewRepresentable {
     let text: String
     var font: UIFont = .preferredFont(forTextStyle: .body)

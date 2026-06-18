@@ -38,8 +38,13 @@ struct RecordsView: View {
     @State private var showExporter = false
     @State private var exportDocument: RecordsJSONDocument?
     @State private var transferAlert: String?
-    @State private var seg = 0   // 0=收藏 1=历史
+    @State private var seg = 0   // 0=收藏 1=笔记 2=历史
     @State private var path = NavigationPath()
+    // 笔记分段：复用历史的 editMode，单独的选择集与导入导出
+    @State private var noteSelection = Set<String>()
+    @State private var showNoteImporter = false
+    @State private var showNoteExporter = false
+    @State private var noteExportDocument: RecordsJSONDocument?
 
     private var db: GuaDatabase { GuaDatabase.shared }
 
@@ -63,33 +68,49 @@ struct RecordsView: View {
             VStack(spacing: 0) {
                 Picker("", selection: $seg) {
                     Text("收藏").tag(0)
-                    Text("历史").tag(1)
+                    Text("笔记").tag(1)
+                    Text("历史").tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal).padding(.top, 8).padding(.bottom, 4)
 
                 if seg == 0 {
                     FavoritesView()
+                } else if seg == 1 {
+                    notesContent
                 } else {
-                    // 搜索框固定置于「收藏/历史」分段控件下方（不放进导航栏，切换页面位置一致）
+                    // 搜索框固定置于分段控件下方（自定义 TextField，占位色随系统）
                     if !records.isEmpty { historySearchBar }
                     recordsContent
                 }
+            }
+            // 切换分段：清空多选 / 搜索，避免相互影响
+            .onChange(of: seg) { _, _ in
+                withAnimation { editMode = .inactive }
+                selection.removeAll(); noteSelection.removeAll(); searchText = ""
+            }
+            // 从详情返回根列表（非编辑态）：清空选择，避免行高亮残留
+            .onChange(of: path.count) { _, n in
+                if n == 0 && !editMode.isEditing { selection.removeAll(); noteSelection.removeAll() }
             }
             // 收藏页可跳转：历史记录详情 / 易经卦象 / 典籍章节，全部 value-based 以便 path 追踪
             .navigationDestination(for: CastRecord.self) { RecordDetailView(record: $0) }
             .navigationDestination(for: GuaRoute.self) { route in
                 if let g = db.hexagram(number: route.number) {
-                    HexagramDetailView(hexagram: g, showShareActions: true)
+                    HexagramDetailView(hexagram: g, showShareActions: true, initialAnchor: route.anchor)
                 }
             }
             .navigationDestination(for: ChapterRoute.self) { route in
-                BookChapterView(bookId: route.bookId, index: route.index, highlight: route.highlight)
+                BookChapterView(bookId: route.bookId, index: route.index, highlight: route.highlight, anchor: route.anchor)
             }
-            .navigationTitle(seg == 0 ? "收藏" : (editMode.isEditing ? "已选 \(selection.count) 条" : "历史记录"))
+            .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { if seg == 1 { toolbarContent } }
-            .toolbar { if seg == 1 && editMode.isEditing { bottomBarContent } }
+            .toolbar { if seg == 1 { noteToolbarContent } else if seg == 2 { toolbarContent } }
+            .toolbar {
+                if editMode.isEditing {
+                    if seg == 1 { noteBottomBar } else if seg == 2 { bottomBarContent }
+                }
+            }
             .fileExporter(isPresented: $showExporter,
                           document: exportDocument,
                           contentType: .json,
@@ -104,6 +125,20 @@ struct RecordsView: View {
                           allowedContentTypes: [.json]) { result in
                 handleImport(result)
             }
+            .fileExporter(isPresented: $showNoteExporter,
+                          document: noteExportDocument,
+                          contentType: .json,
+                          defaultFilename: noteExportFileName()) { result in
+                if case .failure(let err) = result {
+                    transferAlert = "导出失败：\(err.localizedDescription)"
+                } else {
+                    transferAlert = "导出成功"
+                }
+            }
+            .fileImporter(isPresented: $showNoteImporter,
+                          allowedContentTypes: [.json]) { result in
+                handleNoteImport(result)
+            }
             .alert(transferAlert ?? "", isPresented: Binding(
                 get: { transferAlert != nil },
                 set: { if !$0 { transferAlert = nil } }
@@ -115,7 +150,7 @@ struct RecordsView: View {
         .toolbar(path.isEmpty ? .visible : .hidden, for: .tabBar)
     }
 
-    // 历史页搜索框：置于分段控件下方
+    // 历史页搜索框：置于分段控件下方（自定义，外观/占位色与系统搜索框一致）
     private var historySearchBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.subheadline)
@@ -130,7 +165,7 @@ struct RecordsView: View {
             }
         }
         .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal).padding(.bottom, 6)
     }
 
@@ -154,6 +189,149 @@ struct RecordsView: View {
                     .onDelete(perform: editMode.isEditing ? nil : deleteRecords)
                 }
                 .environment(\.editMode, $editMode)
+            }
+        }
+    }
+
+    private var navTitle: String {
+        switch seg {
+        case 0: return "收藏"
+        case 1: return editMode.isEditing ? "已选 \(noteSelection.count) 条" : "笔记"
+        default: return editMode.isEditing ? "已选 \(selection.count) 条" : "历史记录"
+        }
+    }
+
+    // MARK: - 笔记分段
+
+    @ViewBuilder
+    private var notesContent: some View {
+        let items = buildNoteList()
+        Group {
+            if items.isEmpty {
+                ContentUnavailableView("暂无笔记",
+                    systemImage: "square.and.pencil",
+                    description: Text("在原文卡片右上角点铅笔添加笔记"))
+            } else {
+                List(selection: $noteSelection) {
+                    ForEach(items) { it in noteLink(it) }
+                        .onDelete(perform: editMode.isEditing ? nil : { offsets in deleteNotes(items, offsets) })
+                }
+                .environment(\.editMode, $editMode)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func noteLink(_ it: NoteItem) -> some View {
+        if it.kind == "yj" {
+            NavigationLink(value: GuaRoute(number: it.refId, anchor: it.anchor)) { noteRow(it) }
+        } else {
+            NavigationLink(value: ChapterRoute(bookId: it.kind, index: it.refId, highlight: "", anchor: it.anchor)) { noteRow(it) }
+        }
+    }
+
+    private func noteRow(_ it: NoteItem) -> some View {
+        HStack(spacing: 12) {
+            Text(it.tag).font(.system(size: 15)).foregroundStyle(.blue).frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(it.title).lineLimit(1).truncationMode(.tail)
+                Text(it.sub).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ToolbarContentBuilder
+    private var noteToolbarContent: some ToolbarContent {
+        if editMode.isEditing {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(allNotesSelected ? "全不选" : "全选") {
+                    if allNotesSelected { noteSelection.removeAll() }
+                    else { noteSelection = Set(buildNoteList().map(\.id)) }
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("完成") { exitNoteSelection() }
+            }
+        } else {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Menu {
+                    Button { exportAllNotes() } label: { Label("导出全部", systemImage: "square.and.arrow.up") }
+                    Button { showNoteImporter = true } label: { Label("导入", systemImage: "square.and.arrow.down") }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                if !buildNoteList().isEmpty {
+                    Button("选择") { withAnimation { editMode = .active } }
+                }
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var noteBottomBar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            Button(role: .destructive) { deleteSelectedNotes() } label: {
+                Label("删除\(noteSelection.isEmpty ? "" : " \(noteSelection.count)")", systemImage: "trash")
+            }
+            .disabled(noteSelection.isEmpty)
+            Spacer()
+            Button { exportSelectedNotes() } label: {
+                Label("导出\(noteSelection.isEmpty ? "" : " \(noteSelection.count)")", systemImage: "square.and.arrow.up")
+            }
+            .disabled(noteSelection.isEmpty)
+        }
+    }
+
+    private var allNotesSelected: Bool {
+        let items = buildNoteList()
+        return !items.isEmpty && noteSelection.count == items.count
+    }
+    private func exitNoteSelection() {
+        withAnimation { editMode = .inactive }
+        noteSelection.removeAll()
+    }
+    private func deleteNotes(_ items: [NoteItem], _ offsets: IndexSet) {
+        for i in offsets { let it = items[i]; NotesStore.shared.set(it.kind, it.anchor, "") }
+    }
+    private func deleteSelectedNotes() {
+        for it in buildNoteList() where noteSelection.contains(it.id) {
+            NotesStore.shared.set(it.kind, it.anchor, "")
+        }
+        exitNoteSelection()
+    }
+    private func exportSelectedNotes() { exportNotes(buildNoteList().filter { noteSelection.contains($0.id) }) }
+    private func exportAllNotes() { exportNotes(buildNoteList()) }
+    private func exportNotes(_ items: [NoteItem]) {
+        let dtos = items.map { NoteDTO(book: $0.kind, key: $0.anchor, text: $0.text, title: $0.title) }
+        guard !dtos.isEmpty, let data = try? RecordTransfer.encoder().encode(dtos) else {
+            transferAlert = "导出失败"; return
+        }
+        noteExportDocument = RecordsJSONDocument(data: data)
+        showNoteExporter = true
+    }
+    private func noteExportFileName() -> String {
+        let f = DateFormatter(); f.dateFormat = "yyyyMMdd_HHmm"
+        return "经典笔记_\(f.string(from: Date())).json"
+    }
+    private func handleNoteImport(_ result: Result<URL, Error>) {
+        switch result {
+        case .failure(let err):
+            transferAlert = "导入失败：\(err.localizedDescription)"
+        case .success(let url):
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try Data(contentsOf: url)
+                let dtos = try RecordTransfer.decoder().decode([NoteDTO].self, from: data)
+                var added = 0, skipped = 0
+                for d in dtos {
+                    if d.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { skipped += 1; continue }
+                    NotesStore.shared.set(d.book, d.key, d.text); added += 1
+                }
+                transferAlert = "导入完成：新增 \(added) 条" + (skipped > 0 ? "，跳过无效 \(skipped) 条" : "")
+            } catch {
+                transferAlert = "导入失败：文件格式不正确"
             }
         }
     }
@@ -376,6 +554,11 @@ struct RecordDetailView: View {
                     draftTranscript = record.transcript
                     draftNote = record.note
                 }
+                // 返回列表前收起键盘 / 第一响应者，避免焦点残留到列表页
+                .onDisappear {
+                    endEditing()
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
             }
         }
     }
@@ -412,7 +595,6 @@ struct RecordDetailView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("问题").font(.caption).foregroundStyle(.secondary)
                 TextField("点击编辑问题", text: $record.question, axis: .vertical)
-                    .lineLimit(1...4)
                     .font(.body)
             }
 

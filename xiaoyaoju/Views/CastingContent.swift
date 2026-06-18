@@ -76,8 +76,8 @@ struct CastingContent: View {
         // tabBar 隐藏由所属 NavigationStack 按 path 统一控制（易经 Tab 下此页为 push 态）
         .toolbar { toolbarContent }
         .alert("已保存到记录", isPresented: $savedAlert) {
-            Button("查看") { navigateToSaved = true }
-            Button("好的", role: .cancel) {}
+            Button("好的") {}
+            Button("查看") { navigateToSaved = true }.keyboardShortcut(.defaultAction)
         }
         .navigationDestination(isPresented: $navigateToSaved) {
             if let r = lastSaved { RecordDetailView(record: r) }

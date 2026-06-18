@@ -31,7 +31,7 @@ struct LookupView: View {
             }
             .navigationDestination(for: GuaRoute.self) { route in
                 if let g = db.hexagram(number: route.number) {
-                    HexagramDetailView(hexagram: g, showShareActions: true)
+                    HexagramDetailView(hexagram: g, showShareActions: true, initialAnchor: route.anchor)
                 }
             }
         }
