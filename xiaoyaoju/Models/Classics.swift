@@ -50,12 +50,7 @@ final class ClassicsDatabase {
 
     // 默认 booklist（与小程序 config.json 对齐；首次/离线兜底）
     private static let DEFAULT_METAS: [BookMeta] = [
-        BookMeta(id: "ddj", name: "道德经", icon: "道"),
-        BookMeta(id: "zz", name: "庄子", icon: "庄"),
-        BookMeta(id: "yj", name: "易经", icon: "易", isYijing: true),
-        BookMeta(id: "lz", name: "列子", icon: "列"),
-        BookMeta(id: "tanjing", name: "坛经", icon: "坛"),
-        BookMeta(id: "jingangjing", name: "金刚经", icon: "金"),
+        BookMeta(id: "yj", name: "易经", icon: "易", isYijing: true)
     ]
     // 随包资源名（仅这些 id 有随包 JSON；其它走远程 <id>.json）
     private let bundleNames: [String: String] = [
