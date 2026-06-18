@@ -62,14 +62,16 @@ struct RecordsView: View {
     @State private var showImporter = false
     @State private var showExporter = false
     @State private var exportDocument: RecordsJSONDocument?
+    @State private var exportFilename = ""        // 导出文件名（记录/笔记共用一个 fileExporter）
+    @State private var importIsNotes = false      // 导入路由：true=笔记，false=记录
     @State private var transferAlert: String?
+    @State private var importConflicts: [RecordDTO] = []   // date 重复、待用户决定覆盖/跳过
+    @State private var importedAdded = 0                    // 本次已新增条数（用于汇总）
+    @State private var showOverwriteAlert = false
     @State private var seg = 0   // 0=收藏 1=笔记 2=历史
     @State private var path = NavigationPath()
-    // 笔记分段：复用历史的 editMode，单独的选择集与导入导出
+    // 笔记分段：复用历史的 editMode，单独的选择集
     @State private var noteSelection = Set<String>()
-    @State private var showNoteImporter = false
-    @State private var showNoteExporter = false
-    @State private var noteExportDocument: RecordsJSONDocument?
 
     private var db: GuaDatabase { GuaDatabase.shared }
     private var effSeg: Int { preview ? 2 : seg }   // 预览态恒为历史
@@ -144,7 +146,7 @@ struct RecordsView: View {
             .fileExporter(isPresented: $showExporter,
                           document: exportDocument,
                           contentType: .json,
-                          defaultFilename: exportFileName()) { result in
+                          defaultFilename: exportFilename) { result in
                 if case .failure(let err) = result {
                     transferAlert = "导出失败：\(err.localizedDescription)"
                 } else {
@@ -153,27 +155,20 @@ struct RecordsView: View {
             }
             .fileImporter(isPresented: $showImporter,
                           allowedContentTypes: [.json]) { result in
-                handleImport(result)
-            }
-            .fileExporter(isPresented: $showNoteExporter,
-                          document: noteExportDocument,
-                          contentType: .json,
-                          defaultFilename: noteExportFileName()) { result in
-                if case .failure(let err) = result {
-                    transferAlert = "导出失败：\(err.localizedDescription)"
-                } else {
-                    transferAlert = "导出成功"
-                }
-            }
-            .fileImporter(isPresented: $showNoteImporter,
-                          allowedContentTypes: [.json]) { result in
-                handleNoteImport(result)
+                if importIsNotes { handleNoteImport(result) } else { handleImport(result) }
             }
             .alert(transferAlert ?? "", isPresented: Binding(
                 get: { transferAlert != nil },
                 set: { if !$0 { transferAlert = nil } }
             )) {
                 Button("好的", role: .cancel) {}
+            }
+            .alert("有 \(importConflicts.count) 条记录已存在", isPresented: $showOverwriteAlert) {
+                Button("覆盖") { resolveImportConflicts(overwrite: true) }
+                Button("跳过") { resolveImportConflicts(overwrite: false) }
+                Button("取消", role: .cancel) { importConflicts = [] }
+            } message: {
+                Text("已新增 \(importedAdded) 条；时间重复的记录要覆盖还是跳过？")
             }
         }
         // tabBar 可见性随导航深度同步切换，避免 pop 时 tabBar 延迟出现的闪烁
@@ -283,7 +278,8 @@ struct RecordsView: View {
                 Menu {
                     Button { exportAllNotes() } label: { Label("导出全部", systemImage: "square.and.arrow.up") }
                     Button { copyNotesToClipboard() } label: { Label("复制到剪贴板", systemImage: "doc.on.doc") }
-                    Button { showNoteImporter = true } label: { Label("导入", systemImage: "square.and.arrow.down") }
+                    Button { importIsNotes = true; showImporter = true } label: { Label("导入", systemImage: "square.and.arrow.down") }
+                    Button { importNotesFromClipboard() } label: { Label("从剪贴板导入", systemImage: "doc.on.clipboard") }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -347,8 +343,9 @@ struct RecordsView: View {
         guard !dtos.isEmpty, let data = try? RecordTransfer.encoder().encode(dtos) else {
             transferAlert = "导出失败"; return
         }
-        noteExportDocument = RecordsJSONDocument(data: data)
-        showNoteExporter = true
+        exportDocument = RecordsJSONDocument(data: data)
+        exportFilename = noteExportFileName()
+        showExporter = true
     }
     private func noteExportFileName() -> String {
         let f = DateFormatter(); f.dateFormat = "yyyyMMdd_HHmm"
@@ -361,19 +358,28 @@ struct RecordsView: View {
         case .success(let url):
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            do {
-                let data = try Data(contentsOf: url)
-                let dtos = try RecordTransfer.decoder().decode([NoteDTO].self, from: data)
-                var added = 0, skipped = 0
-                for d in dtos {
-                    if d.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { skipped += 1; continue }
-                    NotesStore.shared.set(d.book, d.key, d.text); added += 1
-                }
-                transferAlert = "导入完成：新增 \(added) 条" + (skipped > 0 ? "，跳过无效 \(skipped) 条" : "")
-            } catch {
-                transferAlert = "导入失败：文件格式不正确"
-            }
+            guard let data = try? Data(contentsOf: url) else { transferAlert = "导入失败：无法读取文件"; return }
+            importNotes(data)
         }
+    }
+
+    private func importNotes(_ data: Data) {
+        guard let dtos = try? RecordTransfer.decoder().decode([NoteDTO].self, from: data) else {
+            transferAlert = "导入失败：格式不正确"; return
+        }
+        var added = 0, skipped = 0
+        for d in dtos {
+            if d.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { skipped += 1; continue }
+            NotesStore.shared.set(d.book, d.key, d.text); added += 1
+        }
+        transferAlert = "导入完成：新增 \(added) 条" + (skipped > 0 ? "，跳过无效 \(skipped) 条" : "")
+    }
+
+    private func importNotesFromClipboard() {
+        guard let s = UIPasteboard.general.string, let data = s.data(using: .utf8) else {
+            transferAlert = "剪贴板无内容"; return
+        }
+        importNotes(data)
     }
 
     // MARK: - Toolbars
@@ -401,8 +407,11 @@ struct RecordsView: View {
                         Label("复制到剪贴板", systemImage: "doc.on.doc")
                     }
                     .disabled(records.isEmpty)
-                    Button { showImporter = true } label: {
+                    Button { importIsNotes = false; showImporter = true } label: {
                         Label("导入", systemImage: "square.and.arrow.down")
+                    }
+                    Button { importRecordsFromClipboard() } label: {
+                        Label("从剪贴板导入", systemImage: "doc.on.clipboard")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -455,6 +464,7 @@ struct RecordsView: View {
             return
         }
         exportDocument = RecordsJSONDocument(data: data)
+        exportFilename = exportFileName()
         showExporter = true
     }
 
@@ -494,6 +504,7 @@ struct RecordsView: View {
             return
         }
         exportDocument = RecordsJSONDocument(data: data)
+        exportFilename = exportFileName()
         showExporter = true
     }
 
@@ -504,22 +515,52 @@ struct RecordsView: View {
         case .success(let url):
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-            do {
-                let data = try Data(contentsOf: url)
-                let dtos = try RecordTransfer.decoder().decode([RecordDTO].self, from: data)
-                // 以时间为 id，append（跳过已存在的相同时间记录）
-                let existing = Set(records.map(\.date))
-                var added = 0, skipped = 0
-                for dto in dtos {
-                    if existing.contains(dto.date) { skipped += 1; continue }
-                    modelContext.insert(CastRecord(dto: dto))
-                    added += 1
-                }
-                transferAlert = "导入完成：新增 \(added) 条" + (skipped > 0 ? "，跳过重复 \(skipped) 条" : "")
-            } catch {
-                transferAlert = "导入失败：文件格式不正确"
-            }
+            guard let data = try? Data(contentsOf: url) else { transferAlert = "导入失败：无法读取文件"; return }
+            importRecords(data)
         }
+    }
+
+    private func importRecords(_ data: Data) {
+        guard let dtos = try? RecordTransfer.decoder().decode([RecordDTO].self, from: data) else {
+            transferAlert = "导入失败：格式不正确"; return
+        }
+        // 以时间为 id：不重复的直接新增；重复的暂存，弹窗让用户选覆盖/跳过
+        let existing = Set(records.map(\.date))
+        var added = 0
+        var conflicts: [RecordDTO] = []
+        for dto in dtos {
+            if existing.contains(dto.date) { conflicts.append(dto) }
+            else { modelContext.insert(CastRecord(dto: dto)); added += 1 }
+        }
+        importedAdded = added
+        if conflicts.isEmpty {
+            transferAlert = "导入完成：新增 \(added) 条"
+        } else {
+            importConflicts = conflicts
+            showOverwriteAlert = true
+        }
+    }
+
+    // 用户在「覆盖/跳过」弹窗后处理 date 重复的记录
+    private func resolveImportConflicts(overwrite: Bool) {
+        let n = importConflicts.count
+        if overwrite {
+            for dto in importConflicts {
+                if let old = records.first(where: { $0.date == dto.date }) { modelContext.delete(old) }
+                modelContext.insert(CastRecord(dto: dto))
+            }
+            transferAlert = "导入完成：新增 \(importedAdded) 条，覆盖 \(n) 条"
+        } else {
+            transferAlert = "导入完成：新增 \(importedAdded) 条，跳过 \(n) 条"
+        }
+        importConflicts = []
+    }
+
+    private func importRecordsFromClipboard() {
+        guard let s = UIPasteboard.general.string, let data = s.data(using: .utf8) else {
+            transferAlert = "剪贴板无内容"; return
+        }
+        importRecords(data)
     }
 }
 
