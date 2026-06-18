@@ -5,6 +5,9 @@ struct NotesView: View {
     private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
     @State private var showSettings = false
     @AppStorage("appColorScheme") private var colorSchemeIndex = 0
+    @AppStorage("hideNotes") private var hideNotes = false   // 阅读模式：隐藏笔记/注释/译文
+    @State private var readingToast = false
+    @State private var readingToastText = ""
 
     private var colorSchemeIcon: String {
         switch colorSchemeIndex {
@@ -12,6 +15,12 @@ struct NotesView: View {
         case 2: return "moon.stars.fill"
         default: return "circle.lefthalf.filled"
         }
+    }
+
+    private func showReadingToast(_ text: String) {
+        readingToastText = text
+        withAnimation { readingToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) { withAnimation { readingToast = false } }
     }
 
     /// App 版本号（取自 Info.plist）："版本号：1.0"
@@ -70,13 +79,31 @@ struct NotesView: View {
                         Image(systemName: colorSchemeIcon)
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    // 阅读模式：眼睛，置于设置左边
+                    Button {
+                        hideNotes.toggle()
+                        showReadingToast(hideNotes ? "阅读模式已开启，只显示原文" : "阅读模式已关闭")
+                    } label: {
+                        Image("IconEye").renderingMode(.template)
+                            .foregroundStyle(hideNotes ? Color.accentColor : .secondary)
+                    }
                     Button { showSettings = true } label: {
                         Image(systemName: "slider.horizontal.3")
                     }
                 }
             }
             .sheet(isPresented: $showSettings) { BookSettingsView() }
+            .overlay(alignment: .top) {
+                if readingToast {
+                    Text(readingToastText)
+                        .font(.subheadline).foregroundStyle(.white)
+                        .padding(.horizontal, 18).padding(.vertical, 11)
+                        .background(.black.opacity(0.8), in: Capsule())
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
+            }
         }
     }
 }

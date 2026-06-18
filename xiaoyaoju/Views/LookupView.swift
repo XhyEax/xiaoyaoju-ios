@@ -11,11 +11,9 @@ struct LookupView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Section {
-                    NavigationLink(value: CastInputRoute()) {
-                        Label("点选六爻查卦", systemImage: "hand.tap")
-                            .foregroundStyle(.blue)
-                    }
+                NavigationLink(value: CastInputRoute()) {
+                    Label("点选六爻查卦", systemImage: "hand.tap")
+                        .foregroundStyle(.blue)
                 }
 
                 ForEach(results) { gua in
@@ -24,6 +22,7 @@ struct LookupView: View {
                     }
                 }
             }
+            .listSectionSpacing(.compact)
             .navigationTitle("易经")
             .searchable(text: $searchText, prompt: "搜索卦名、卦辞、爻辞")
             .navigationDestination(for: CastInputRoute.self) { _ in

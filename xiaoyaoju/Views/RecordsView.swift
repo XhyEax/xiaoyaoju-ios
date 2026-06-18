@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 import UniformTypeIdentifiers
 
 extension Date {
@@ -24,6 +25,29 @@ func exportFileName() -> String {
     f.dateFormat = "yyyyMMdd_HHmm"
     f.locale = Locale(identifier: "zh_CN")
     return "六爻记录_" + f.string(from: Date())
+}
+
+// 复用的内联搜索框（置于分段控件下方，外观/占位色与系统搜索框一致）
+struct InlineSearchBar: View {
+    @Binding var text: String
+    var prompt: String
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.subheadline)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+            if !text.isEmpty {
+                Button { text = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal).padding(.bottom, 6)
+    }
 }
 
 // MARK: - List view
@@ -74,13 +98,15 @@ struct RecordsView: View {
                 .pickerStyle(.segmented)
                 .padding(.horizontal).padding(.top, 8).padding(.bottom, 4)
 
+                // 搜索框固定置于分段控件下方（三段复用同一布局）
                 if seg == 0 {
-                    FavoritesView()
+                    if hasFavorites { InlineSearchBar(text: $searchText, prompt: "搜索收藏") }
+                    FavoritesView(search: searchText)
                 } else if seg == 1 {
+                    if !buildNoteList().isEmpty { InlineSearchBar(text: $searchText, prompt: "搜索笔记") }
                     notesContent
                 } else {
-                    // 搜索框固定置于分段控件下方（自定义 TextField，占位色随系统）
-                    if !records.isEmpty { historySearchBar }
+                    if !records.isEmpty { InlineSearchBar(text: $searchText, prompt: "搜索问题、记录或卦名") }
                     recordsContent
                 }
             }
@@ -150,23 +176,10 @@ struct RecordsView: View {
         .toolbar(path.isEmpty ? .visible : .hidden, for: .tabBar)
     }
 
-    // 历史页搜索框：置于分段控件下方（自定义，外观/占位色与系统搜索框一致）
-    private var historySearchBar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.subheadline)
-            TextField("搜索问题、记录或卦名", text: $searchText)
-                .textFieldStyle(.plain)
-                .autocorrectionDisabled()
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal).padding(.bottom, 6)
+    // 当前收藏是否非空（决定收藏页是否显示搜索框）
+    private var hasFavorites: Bool {
+        let f = FavoritesStore.shared
+        return ClassicsDatabase.shared.bookMetas.contains { !f.ids($0.id).isEmpty }
     }
 
     // 历史记录内容（列表 / 空态）
@@ -189,6 +202,7 @@ struct RecordsView: View {
                     .onDelete(perform: editMode.isEditing ? nil : deleteRecords)
                 }
                 .environment(\.editMode, $editMode)
+                .contentMargins(.top, 4, for: .scrollContent)
             }
         }
     }
@@ -205,18 +219,25 @@ struct RecordsView: View {
 
     @ViewBuilder
     private var notesContent: some View {
-        let items = buildNoteList()
+        let all = buildNoteList()
+        let q = searchText.trimmingCharacters(in: .whitespaces)
+        let items = q.isEmpty ? all : all.filter {
+            $0.title.localizedCaseInsensitiveContains(q) || $0.text.localizedCaseInsensitiveContains(q)
+        }
         Group {
-            if items.isEmpty {
+            if all.isEmpty {
                 ContentUnavailableView("暂无笔记",
                     systemImage: "square.and.pencil",
                     description: Text("在原文卡片右上角点铅笔添加笔记"))
+            } else if items.isEmpty {
+                ContentUnavailableView.search(text: searchText)
             } else {
                 List(selection: $noteSelection) {
                     ForEach(items) { it in noteLink(it) }
                         .onDelete(perform: editMode.isEditing ? nil : { offsets in deleteNotes(items, offsets) })
                 }
                 .environment(\.editMode, $editMode)
+                .contentMargins(.top, 4, for: .scrollContent)
             }
         }
     }
@@ -512,6 +533,9 @@ struct RecordDetailView: View {
     @State private var editingField: EditField?
     @FocusState private var transcriptFocused: Bool
     @FocusState private var noteFocused: Bool
+    /// 分享：先问是否包含笔记，再弹系统分享面板
+    @State private var askShareNote = false
+    @State private var shareSheetText: String?
 
     private var db: GuaDatabase { GuaDatabase.shared }
     private var benGua: Hexagram? { db.hexagram(number: record.benGua) }
@@ -554,14 +578,26 @@ struct RecordDetailView: View {
                     }
                     ToolbarItemGroup(placement: .navigationBarTrailing) {
                         Button {
-                            UIPasteboard.general.string = shareText(gua: gua)
+                            UIPasteboard.general.string = shareText(gua: gua)   // 复制不含笔记
                         } label: {
                             Image(systemName: "doc.on.doc")
                         }
-                        ShareLink(item: shareText(gua: gua)) {
+                        Button {
+                            if record.note.isEmpty { shareSheetText = shareText(gua: gua, includeNote: false) }
+                            else { askShareNote = true }
+                        } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
+                        .confirmationDialog("分享", isPresented: $askShareNote, titleVisibility: .visible) {
+                            Button("包含笔记") { shareSheetText = shareText(gua: gua, includeNote: true) }
+                            Button("不包含笔记") { shareSheetText = shareText(gua: gua, includeNote: false) }
+                            Button("取消", role: .cancel) {}
+                        }
                     }
+                }
+                .sheet(isPresented: Binding(get: { shareSheetText != nil },
+                                            set: { if !$0 { shareSheetText = nil } })) {
+                    if let t = shareSheetText { ActivityView(items: [t]) }
                 }
                 // Bottom bar: cancel / save for the active editable field
                 .safeAreaInset(edge: .bottom) {
@@ -735,7 +771,7 @@ struct RecordDetailView: View {
 
     // MARK: - Share text
 
-    private func shareText(gua: Hexagram) -> String {
+    private func shareText(gua: Hexagram, includeNote: Bool = false) -> String {
         var lines: [String] = []
         lines.append("时间：\(record.date.displayString)")
         lines.append("方式：\(record.method)")
@@ -757,8 +793,8 @@ struct RecordDetailView: View {
             for line in movingYaoLines { lines.append("  \(line)") }
         }
 
-        // 笔记
-        if !record.note.isEmpty {
+        // 笔记（复制不含；分享按需）
+        if includeNote && !record.note.isEmpty {
             lines.append("笔记：\(record.note)")
         }
 
@@ -769,4 +805,13 @@ struct RecordDetailView: View {
 #Preview {
     RecordsView()
         .modelContainer(for: CastRecord.self, inMemory: true)
+}
+
+/// 系统分享面板（UIActivityViewController 封装）
+struct ActivityView: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

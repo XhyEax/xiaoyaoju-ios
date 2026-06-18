@@ -3,8 +3,15 @@ import SwiftUI
 
 struct FavoritesView: View {
     @State private var fav = FavoritesStore.shared
+    var search: String = ""
     private var gua: GuaDatabase { .shared }
     private var db: ClassicsDatabase { .shared }
+
+    private var filtered: [FavItem] {
+        let q = search.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return items }
+        return items.filter { $0.title.localizedCaseInsensitiveContains(q) || $0.sub.localizedCaseInsensitiveContains(q) }
+    }
 
     private var items: [FavItem] {
         var out: [FavItem] = []
@@ -33,9 +40,11 @@ struct FavoritesView: View {
             if items.isEmpty {
                 ContentUnavailableView("暂无收藏", systemImage: "star",
                     description: Text("在典籍 / 易经详情点 ★ 收藏"))
+            } else if filtered.isEmpty {
+                ContentUnavailableView.search(text: search)
             } else {
                 List {
-                    ForEach(items) { it in
+                    ForEach(filtered) { it in
                         favLink(it)
                             .swipeActions {
                                 Button(role: .destructive) {
@@ -44,6 +53,7 @@ struct FavoritesView: View {
                             }
                     }
                 }
+                .contentMargins(.top, 4, for: .scrollContent)
             }
         }
     }

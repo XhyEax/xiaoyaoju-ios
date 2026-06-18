@@ -78,6 +78,7 @@ struct BookChapterView: View {
     @State private var showTOC = false
     @State private var scrollID: String?   // 当前顶部卡片 id；切换注/译时保持段落位置
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
+    @AppStorage("hideNotes") private var hideNotes = false   // 阅读模式：正文不显示笔记和笔记按钮
 
     init(bookId: String, index: Int, highlight: String = "", anchor: String? = nil) {
         self.bookId = bookId
@@ -91,7 +92,11 @@ struct BookChapterView: View {
     private var db: ClassicsDatabase { .shared }
     private var list: [ClassicChapter] { db.chapters(bookId) }
     private var chapter: ClassicChapter? { db.chapter(bookId, cur) }
-    private func o(_ s: String) -> String { hideAnno ? stripMarks(s) : s }
+    // 阅读模式：隐藏笔记/笔记按钮 + 注释 + 译文（在各自开关基础上叠加）
+    private var showNotes: Bool { !hideNotes }
+    private var noAnno: Bool { hideAnno || hideNotes }
+    private var noTrans: Bool { hideTrans || hideNotes }
+    private func o(_ s: String) -> String { noAnno ? stripMarks(s) : s }
 
     var body: some View {
         // iPad 横屏（宽 ≥ 1000）：左目录栏 + 右正文双栏，参照 book.html 桌面布局
@@ -165,11 +170,11 @@ struct BookChapterView: View {
                         }
                     } else {
                         singleOriginalCard(o(c.original ?? "")).id("c0")
-                        if let a = c.annotation, !a.isEmpty, !hideAnno {
+                        if let a = c.annotation, !a.isEmpty, !noAnno {
                             ClassicCard(a, title: "注释", copy: a,
                                         uiFont: scaledUIFont(.footnote, fontScale), color: .secondary)
                         }
-                        if !hideTrans, let tr = c.translation, !tr.isEmpty {
+                        if !noTrans, let tr = c.translation, !tr.isEmpty {
                             ClassicCard(tr, title: "译文", copy: tr,
                                         uiFont: scaledUIFont(.body, fontScale), highlight: highlight).id("ctr")
                         }
@@ -216,23 +221,23 @@ struct BookChapterView: View {
     // 段落卡：段号 + 铅笔；笔记显示在原文下方
     private func paragraphCard(_ i: Int, _ p: ClassicPara) -> some View {
         let key = "\(cur)-\(i)"
-        let note = notes.get(bookId, key)
+        let note = showNotes ? notes.get(bookId, key) : ""
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("\(i + 1)").font(.subheadline).bold().foregroundStyle(.secondary)
                 Spacer()
-                NotePencil { noteTarget = NoteTarget(kind: bookId, key: key) }
+                if showNotes { NotePencil { noteTarget = NoteTarget(kind: bookId, key: key) } }
             }
             ReadOnlyTextEditor(text: o(p.original), font: scaledUIFont(.body, fontScale), lineSpacing: 6, highlight: highlight)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if !note.isEmpty {
                 NoteDisplay(text: note, fontScale: fontScale) { noteTarget = NoteTarget(kind: bookId, key: key) }
             }
-            if !p.annotation.isEmpty && !hideAnno {
+            if !p.annotation.isEmpty && !noAnno {
                 ReadOnlyTextEditor(text: "注：" + p.annotation, font: scaledUIFont(.footnote, fontScale), color: .secondaryLabel, lineSpacing: 3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if !hideTrans {
+            if !noTrans {
                 Divider()
                 ReadOnlyTextEditor(text: p.translation, font: scaledUIFont(.body, fontScale), color: .secondaryLabel, lineSpacing: 3, highlight: highlight)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,12 +250,12 @@ struct BookChapterView: View {
     // 单章原文卡：原文标题 + 铅笔；笔记显示在原文下方
     private func singleOriginalCard(_ text: String) -> some View {
         let key = "\(cur)"
-        let note = notes.get(bookId, key)
+        let note = showNotes ? notes.get(bookId, key) : ""
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("原文").font(.subheadline).bold().foregroundStyle(.secondary)
                 Spacer()
-                NotePencil { noteTarget = NoteTarget(kind: bookId, key: key) }
+                if showNotes { NotePencil { noteTarget = NoteTarget(kind: bookId, key: key) } }
             }
             ReadOnlyTextEditor(text: text, font: scaledUIFont(.body, fontScale), lineSpacing: 6, highlight: highlight)
                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -17,6 +17,7 @@ struct HexagramDetailView: View {
     /// 「变」开关：隐藏各爻变卦（仅查卦浏览态生效），全局持久化
     @AppStorage("yj_hideBian") private var hideBian: Bool = false
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
+    @AppStorage("hideNotes") private var hideNotes = false   // 阅读模式：不显示笔记和笔记按钮
     @State private var fav = FavoritesStore.shared
     @State private var notes = NotesStore.shared
     @State private var noteTarget: NoteTarget?
@@ -261,12 +262,12 @@ struct HexagramDetailView: View {
 
     private func sectionBlock(title: String, content: String, section: String) -> some View {
         let key = "\(gua.id)-\(section)"
-        let note = notes.get("yj", key)
+        let note = hideNotes ? "" : notes.get("yj", key)
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(title).font(.headline).foregroundStyle(.secondary)
                 Spacer()
-                NotePencil { noteTarget = NoteTarget(kind: "yj", key: key) }
+                if !hideNotes { NotePencil { noteTarget = NoteTarget(kind: "yj", key: key) } }
             }
             ReadOnlyTextEditor(text: content, font: scaledUIFont(.body, fontScale), lineSpacing: 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -307,7 +308,7 @@ struct HexagramDetailView: View {
         let changedNum = singleChangedGuaNumber(flipping: idx)
         let changedGua = changedNum.flatMap { db.hexagram(number: $0) }
         let noteKey = "\(gua.id)-yao\(idx)"
-        let yaoNote = notes.get("yj", noteKey)
+        let yaoNote = hideNotes ? "" : notes.get("yj", noteKey)
 
         VStack(alignment: .leading, spacing: 8) {
             // Mini comparison + yao title
@@ -336,7 +337,7 @@ struct HexagramDetailView: View {
                                 .background(.red.opacity(0.15), in: Capsule())
                                 .foregroundStyle(.red)
                         }
-                        NotePencil { noteTarget = NoteTarget(kind: "yj", key: noteKey) }
+                        if !hideNotes { NotePencil { noteTarget = NoteTarget(kind: "yj", key: noteKey) } }
                     }
                     ReadOnlyTextEditor(text: yao.xiang, font: scaledUIFont(.footnote, fontScale), color: .secondaryLabel)
                         .frame(maxWidth: .infinity, alignment: .leading)
