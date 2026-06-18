@@ -19,6 +19,7 @@ final class NotesStore {
 
     func map(_ kind: String) -> [String: String] { store[kind] ?? [:] }
     func get(_ kind: String, _ id: String) -> String { store[kind]?[id] ?? "" }
+    var isEmpty: Bool { store.values.allSatisfy { $0.isEmpty } }
 
     /// 保存（空文本即删除该条）
     func set(_ kind: String, _ id: String, _ text: String) {

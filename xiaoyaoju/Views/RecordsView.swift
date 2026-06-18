@@ -53,6 +53,7 @@ struct InlineSearchBar: View {
 // MARK: - List view
 
 struct RecordsView: View {
+    var preview = false   // 预览/审核模式：仅显示历史（隐藏收藏/笔记分段）
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CastRecord.date, order: .reverse) private var records: [CastRecord]
     @State private var searchText = ""
@@ -71,6 +72,7 @@ struct RecordsView: View {
     @State private var noteExportDocument: RecordsJSONDocument?
 
     private var db: GuaDatabase { GuaDatabase.shared }
+    private var effSeg: Int { preview ? 2 : seg }   // 预览态恒为历史
 
     /// 按问题 / 记录 / 笔记 / 本卦名 / 变卦名过滤
     private var filteredRecords: [CastRecord] {
@@ -90,19 +92,21 @@ struct RecordsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             VStack(spacing: 0) {
-                Picker("", selection: $seg) {
-                    Text("收藏").tag(0)
-                    Text("笔记").tag(1)
-                    Text("历史").tag(2)
+                if !preview {
+                    Picker("", selection: $seg) {
+                        Text("收藏").tag(0)
+                        Text("笔记").tag(1)
+                        Text("历史").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal).padding(.top, 8).padding(.bottom, 4)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal).padding(.top, 8).padding(.bottom, 4)
 
                 // 搜索框固定置于分段控件下方（三段复用同一布局）
-                if seg == 0 {
+                if effSeg == 0 {
                     if hasFavorites { InlineSearchBar(text: $searchText, prompt: "搜索收藏") }
                     FavoritesView(search: searchText)
-                } else if seg == 1 {
+                } else if effSeg == 1 {
                     if !buildNoteList().isEmpty { InlineSearchBar(text: $searchText, prompt: "搜索笔记") }
                     notesContent
                 } else {
@@ -131,10 +135,10 @@ struct RecordsView: View {
             }
             .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { if seg == 1 { noteToolbarContent } else if seg == 2 { toolbarContent } }
+            .toolbar { if effSeg == 1 { noteToolbarContent } else if effSeg == 2 { toolbarContent } }
             .toolbar {
                 if editMode.isEditing {
-                    if seg == 1 { noteBottomBar } else if seg == 2 { bottomBarContent }
+                    if effSeg == 1 { noteBottomBar } else if effSeg == 2 { bottomBarContent }
                 }
             }
             .fileExporter(isPresented: $showExporter,
@@ -189,7 +193,7 @@ struct RecordsView: View {
             if records.isEmpty {
                 ContentUnavailableView("暂无记录",
                     systemImage: "doc.text.magnifyingglass",
-                    description: Text("在「易经 → 点选六爻」完成并保存后，卦例将出现在这里"))
+                    description: Text("在「六爻」保存，卦例将出现在这里"))
             } else if filteredRecords.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else {
@@ -208,7 +212,7 @@ struct RecordsView: View {
     }
 
     private var navTitle: String {
-        switch seg {
+        switch effSeg {
         case 0: return "收藏"
         case 1: return editMode.isEditing ? "已选 \(noteSelection.count) 条" : "笔记"
         default: return editMode.isEditing ? "已选 \(selection.count) 条" : "历史记录"

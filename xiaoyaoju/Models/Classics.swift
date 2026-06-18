@@ -35,7 +35,8 @@ struct BookMeta: Identifiable, Codable {
 
 private struct RemoteBook: Codable { let id: String; let name: String; let icon: String?; let type: String?; let data: String? }
 private struct RemoteUpdate: Codable { let title: String?; let content: String?; let version: Int? }
-private struct RemoteConfig: Codable { let booklist: [RemoteBook]; let update: RemoteUpdate? }
+private struct RemoteAbtest: Codable { let ios_preview_mode: Bool?; let liuyao_history_count_limit: Int? }
+private struct RemoteConfig: Codable { let booklist: [RemoteBook]; let update: RemoteUpdate?; let abtest: RemoteAbtest? }
 
 // 更新提示内容（来自 config.json 的 update 字段）
 struct UpdateInfo: Equatable { let title: String; let content: String; let version: Int }
@@ -61,6 +62,10 @@ final class ClassicsDatabase {
     private(set) var bookMetas: [BookMeta]
     private(set) var books: [String: [ClassicChapter]] = [:]
     private(set) var update: UpdateInfo?            // config.json 的 update（弹窗用）
+    // abtest.ios_preview_mode：审核/预览模式开关，本地默认 true（缓存上次远端值）
+    private(set) var iosPreviewMode: Bool
+    // abtest.liuyao_history_count_limit：历史数 ≥ 此值才退出预览模式，默认 100
+    private(set) var historyCountLimit: Int
     private var remoteFiles: [String: String] = [:] // id -> data 文件名（config 提供）
     private var loading: Set<String> = []
     private var refreshed: Set<String> = []         // 本次会话已做过 ETag 刷新的书
@@ -72,6 +77,8 @@ final class ClassicsDatabase {
         } else {
             bookMetas = Self.DEFAULT_METAS
         }
+        iosPreviewMode = (UserDefaults.standard.object(forKey: "iosPreviewMode") as? Bool) ?? true
+        historyCountLimit = (UserDefaults.standard.object(forKey: "historyCountLimit") as? Int) ?? 100
     }
 
     func preload() async {
@@ -143,6 +150,14 @@ final class ClassicsDatabase {
         for (k, v) in rf { remoteFiles[k] = v }
         if let u = cfg.update {
             update = UpdateInfo(title: u.title ?? "更新内容", content: u.content ?? "", version: u.version ?? 0)
+        }
+        if let p = cfg.abtest?.ios_preview_mode {
+            iosPreviewMode = p
+            UserDefaults.standard.set(p, forKey: "iosPreviewMode")
+        }
+        if let lim = cfg.abtest?.liuyao_history_count_limit {
+            historyCountLimit = lim
+            UserDefaults.standard.set(lim, forKey: "historyCountLimit")
         }
         let sig: ([BookMeta]) -> String = { ms in
             ms.map { "\($0.id)|\($0.name)|\($0.icon)|\($0.isYijing)" }.joined(separator: ",")

@@ -2,12 +2,12 @@
 import SwiftUI
 import UIKit
 
-// 解析已选 tab 典籍（storage『tabBooks』逗号分隔），过滤非法、限 1-3 本，缺省 道/庄/易
+// 解析已选 tab 典籍（storage『tabBooks』逗号分隔），过滤非法、最多 3 本。
+// 缺省由 AppStorage 默认值 "yj" 提供；显式保存空串 "" 表示不显示任何典籍 tab。
 @MainActor
 func parseTabBooks(_ raw: String) -> [String] {
     let valid = Set(ClassicsDatabase.shared.bookMetas.map { $0.id })
-    var ids = raw.split(separator: ",").map(String.init).filter { valid.contains($0) }
-    if ids.isEmpty { ids = ["ddj", "zz", "yj"] }
+    let ids = raw.split(separator: ",").map(String.init).filter { valid.contains($0) }
     return Array(ids.prefix(3))
 }
 
@@ -31,7 +31,7 @@ func glyphTabImage(_ s: String) -> UIImage {
 // 典籍 Tab 设置：选 1-3 本，按勾选顺序保存到『tabBooks』
 struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("tabBooks") private var tabBooksRaw = "ddj,zz,yj"
+    @AppStorage("tabBooks") private var tabBooksRaw = "yj"
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
     @State private var sel: [String] = []
     @State private var toast: String?
@@ -42,7 +42,7 @@ struct BookSettingsView: View {
         NavigationStack {
             List {
                 Section(header: Text("典籍设置"),
-                        footer: Text("选择底部显示的典籍 Tab（最少 1 本，最多 3 本），按勾选先后顺序排列。")) {
+                        footer: Text("选择底部显示的典籍 Tab（最多 3 本，可不选），按勾选先后顺序排列。")) {
                     ForEach(db.bookMetas) { b in
                         HStack(spacing: 14) {
                             NavigationLink {
@@ -93,7 +93,7 @@ struct BookSettingsView: View {
                     Button { Task { await doRefresh() } } label: {
                         Image("IconReset").renderingMode(.template)
                     }.disabled(refreshing)
-                    Button("保存") { save() }.disabled(sel.isEmpty)
+                    Button("保存") { save() }
                 }
             }
             .overlay(alignment: .bottom) {
@@ -139,8 +139,7 @@ struct BookSettingsView: View {
     }
 
     private func save() {
-        guard !sel.isEmpty else { return }
-        tabBooksRaw = sel.joined(separator: ",")
+        tabBooksRaw = sel.joined(separator: ",")   // 允许为空（不显示任何典籍 tab）
         dismiss()
     }
 }
