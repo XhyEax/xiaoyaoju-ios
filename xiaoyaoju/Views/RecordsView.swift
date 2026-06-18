@@ -257,6 +257,7 @@ struct RecordsView: View {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Menu {
                     Button { exportAllNotes() } label: { Label("导出全部", systemImage: "square.and.arrow.up") }
+                    Button { copyNotesToClipboard() } label: { Label("复制到剪贴板", systemImage: "doc.on.doc") }
                     Button { showNoteImporter = true } label: { Label("导入", systemImage: "square.and.arrow.down") }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -302,6 +303,20 @@ struct RecordsView: View {
     }
     private func exportSelectedNotes() { exportNotes(buildNoteList().filter { noteSelection.contains($0.id) }) }
     private func exportAllNotes() { exportNotes(buildNoteList()) }
+    private func copyNotesToClipboard() {
+        let dtos = buildNoteList().map { NoteDTO(book: $0.kind, key: $0.anchor, text: $0.text, title: $0.title) }
+        guard let data = try? RecordTransfer.encoder().encode(dtos),
+              let s = String(data: data, encoding: .utf8) else { transferAlert = "复制失败"; return }
+        UIPasteboard.general.string = s
+        transferAlert = "已复制到剪贴板"
+    }
+    private func copyRecordsToClipboard() {
+        let dtos = records.map(\.dto)
+        guard let data = try? RecordTransfer.encoder().encode(dtos),
+              let s = String(data: data, encoding: .utf8) else { transferAlert = "复制失败"; return }
+        UIPasteboard.general.string = s
+        transferAlert = "已复制到剪贴板"
+    }
     private func exportNotes(_ items: [NoteItem]) {
         let dtos = items.map { NoteDTO(book: $0.kind, key: $0.anchor, text: $0.text, title: $0.title) }
         guard !dtos.isEmpty, let data = try? RecordTransfer.encoder().encode(dtos) else {
@@ -355,6 +370,10 @@ struct RecordsView: View {
                 Menu {
                     Button { exportRecords() } label: {
                         Label("导出全部", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(records.isEmpty)
+                    Button { copyRecordsToClipboard() } label: {
+                        Label("复制到剪贴板", systemImage: "doc.on.doc")
                     }
                     .disabled(records.isEmpty)
                     Button { showImporter = true } label: {
