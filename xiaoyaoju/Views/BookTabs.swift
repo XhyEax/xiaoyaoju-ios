@@ -28,6 +28,18 @@ func glyphTabImage(_ s: String) -> UIImage {
     return img.withRenderingMode(.alwaysTemplate)
 }
 
+// 把 SF Symbol 渲染成固定高度的 tab 图标（与「收藏」等自定义 tab 图标 27pt 高度一致）
+func symbolTabImage(_ name: String, height: CGFloat = 27) -> UIImage {
+    let cfg = UIImage.SymbolConfiguration(pointSize: height, weight: .regular)
+    let base = UIImage(systemName: name, withConfiguration: cfg) ?? UIImage()
+    guard base.size.height > 0 else { return base.withRenderingMode(.alwaysTemplate) }
+    let target = CGSize(width: base.size.width * height / base.size.height, height: height)
+    let img = UIGraphicsImageRenderer(size: target).image { _ in
+        base.draw(in: CGRect(origin: .zero, size: target))
+    }
+    return img.withRenderingMode(.alwaysTemplate)
+}
+
 // 典籍 Tab 设置：选 1-3 本，按勾选顺序保存到『tabBooks』
 struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss

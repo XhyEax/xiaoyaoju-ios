@@ -52,13 +52,14 @@ struct CastingContent: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 10) {
                     liveGuaSection
                     if showBottomPanel { shakeToggle }
                     if let c = cast { resultSection(cast: c) }
                 }
-                .padding()
-                .padding(.bottom, showBottomPanel ? 8 : 0)
+                .padding(.horizontal)
+                .padding(.top)
+                .padding(.bottom, showBottomPanel ? 10 : 16)
                 // 编辑态下点击空白处关闭底部编辑框（爻线自身的点按优先生效）
                 .contentShape(Rectangle())
                 .onTapGesture { if editingIndex != nil { editingIndex = nil } }
