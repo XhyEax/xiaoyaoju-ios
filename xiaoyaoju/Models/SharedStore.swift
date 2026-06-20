@@ -10,25 +10,41 @@ enum SharedStore {
     /// 共享库文件名
     static let storeName = "CastRecords.store"
 
-    /// 构建指向 App Group 容器的 ModelContainer；容器不可用时退回本地默认库（兜底不崩）。
+    /// 全局唯一容器（CastRecord 历史 + NoteRecord 笔记，均经 CloudKit 同步）。
+    /// App 与 NotesStore 共用这一个，避免多容器写同一文件。
+    static let shared: ModelContainer = makeContainer()
+
+    /// CloudKit 私有容器（需在 Xcode 的 iCloud 能力里建好同名容器）
+    static let cloudContainerID = "iCloud.com.xhy.xiaoyaoju"
+
+    /// 构建 ModelContainer。
+    /// 关键不变量：**始终固定在 App Group 的同一个 store 文件**，开 CloudKit 失败时只退回
+    /// 「同一文件的纯本地(.none)」，**绝不**打开「默认位置的空库」——否则会静默丢数据观感。
     static func makeContainer() -> ModelContainer {
-        let schema = Schema([CastRecord.self])
-        let config: ModelConfiguration
-        if let groupURL = FileManager.default
+        let schema = Schema([CastRecord.self, NoteRecord.self])
+        let url = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
-            .appending(path: storeName) {
-            config = ModelConfiguration(schema: schema, url: groupURL)
-        } else {
-            config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+            .appending(path: storeName)
+
+        func config(cloud: Bool) -> ModelConfiguration {
+            let db: ModelConfiguration.CloudKitDatabase = cloud ? .private(cloudContainerID) : .none
+            if let url {
+                return ModelConfiguration(schema: schema, url: url, cloudKitDatabase: db)
+            }
+            return ModelConfiguration(schema: schema, isStoredInMemoryOnly: false, cloudKitDatabase: db)
         }
-        let container: ModelContainer
+
+        // 1) 优先：同一文件 + CloudKit 镜像（本地始终留一份，多设备经 iCloud 同步）
+        if let c = try? ModelContainer(for: schema, configurations: [config(cloud: true)]) {
+            migrateLegacyIfNeeded(into: c); return c
+        }
+        // 2) 回退：同一文件 + 纯本地（容器没建好/未登录 iCloud 时，数据照样在、不丢）
         do {
-            container = try ModelContainer(for: schema, configurations: [config])
+            let c = try ModelContainer(for: schema, configurations: [config(cloud: false)])
+            migrateLegacyIfNeeded(into: c); return c
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }
-        migrateLegacyIfNeeded(into: container)
-        return container
     }
 
     /// 一次性迁移：把旧的本地默认库（default.store）记录并入共享库，按 date 去重。

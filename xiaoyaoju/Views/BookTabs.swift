@@ -1,6 +1,8 @@
 // Views/BookTabs.swift — 底部 Tab 动态配置（可选 1-3 本典籍）+ 文字图标 + 设置页
 import SwiftUI
 import UIKit
+import SwiftData
+import UniformTypeIdentifiers
 
 // 解析已选 tab 典籍（storage『tabBooks』逗号分隔），过滤非法、最多 3 本。
 // 缺省由 AppStorage 默认值 "yj" 提供；显式保存空串 "" 表示不显示任何典籍 tab。
@@ -45,16 +47,21 @@ struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("tabBooks") private var tabBooksRaw = "yj"
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
+    @AppStorage("showCastingTab") private var showCastingTab = false
     @State private var sel: [String] = []
     @State private var toast: String?
     @State private var refreshing = false
+    // 全部数据 导入导出
+    @State private var showImporter = false
+    @State private var exportState = ExportState()
+    @State private var importResult: String?
     private var db: ClassicsDatabase { .shared }
 
     var body: some View {
         NavigationStack {
             List {
-                Section(header: Text("典籍设置"),
-                        footer: Text("选择底部显示的典籍 Tab（最多 3 本，可不选），按勾选先后顺序排列。")) {
+                Section(header: Text("典籍设置（最多 3 本，可不选）")
+                       ) {
                     ForEach(db.bookMetas) { b in
                         HStack(spacing: 14) {
                             NavigationLink {
@@ -86,7 +93,12 @@ struct BookSettingsView: View {
                         }
                     }
                 }
-                Section(header: Text("字体大小"), footer: Text("详情 / 章节页的正文字号")) {
+                if sel.count < 3 {
+                    Section() {
+                        Toggle("少于3本时显示「爻一爻」", isOn: $showCastingTab)
+                    }
+                }
+                Section(header: Text("正文字体大小")) {
                     Picker("字体大小", selection: $fontScale) {
                         Text("小").tag(0.85)
                         Text("中").tag(0.92)
@@ -96,7 +108,17 @@ struct BookSettingsView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                Section(header: Text("数据"),
+                        footer: Text("导出 / 导入全部收藏、笔记、历史。")) {
+                    Button { exportAll() } label: { Label("导出全部数据", systemImage: "square.and.arrow.up") }
+                    Button { showImporter = true } label: { Label("导入全部数据", systemImage: "square.and.arrow.down") }
+                }
             }
+            .exportFlow(exportState)
+            .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { handleImport($0) }
+            .alert("导入数据", isPresented: Binding(
+                get: { importResult != nil }, set: { if !$0 { importResult = nil } }
+            )) { Button("好的", role: .cancel) {} } message: { Text(importResult ?? "") }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -153,5 +175,48 @@ struct BookSettingsView: View {
     private func save() {
         tabBooksRaw = sel.joined(separator: ",")   // 允许为空（不显示任何典籍 tab）
         dismiss()
+    }
+
+    // MARK: - 全部数据 导入导出（收藏 + 笔记 + 历史）
+
+    private func exportAll() {
+        // 主线程取好所有值类型数据，再后台编码 + 写临时文件（转圈）→ 写完弹保存框
+        let ctx = SharedStore.shared.mainContext
+        let records = (try? ctx.fetch(FetchDescriptor<CastRecord>()))?.map(\.dto) ?? []
+        let notes = buildNoteList().map { NoteDTO(book: $0.kind, key: $0.anchor, text: $0.text, title: $0.title) }
+        let backup = BackupData(favorites: FavoritesStore.shared.allFavorites(), notes: notes, records: records)
+        exportState.begin(filename: RecordTransfer.backupFileName()) { RecordTransfer.encode(backup) }
+    }
+
+    private func handleImport(_ result: Result<URL, Error>) {
+        switch result {
+        case .failure(let err): importResult = "导入失败：\(err.localizedDescription)"
+        case .success(let url):
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else { importResult = "导入失败：无法读取文件"; return }
+            importAll(data)
+        }
+    }
+
+    private func importAll(_ data: Data) {
+        guard let b = try? RecordTransfer.decoder().decode(BackupData.self, from: data) else {
+            importResult = "导入失败：文件格式不正确"; return
+        }
+        let favAdded = FavoritesStore.shared.importFavorites(b.favorites)
+        let (validNotes, _) = RecordTransfer.validNotes(b.notes)
+        for d in validNotes { NotesStore.shared.set(d.book, d.key, d.text) }
+        let ctx = SharedStore.shared.mainContext
+        let existing = Set((try? ctx.fetch(FetchDescriptor<CastRecord>()))?.map(\.date) ?? [])
+        let (newRecs, conflicts) = RecordTransfer.planRecordImport(incoming: b.records, existingDates: existing)
+        for dto in newRecs { ctx.insert(CastRecord(dto: dto)) }
+        try? ctx.save()
+        WidgetBridge.publishLatest()
+        importResult = """
+        导入完成：
+        收藏新增 \(favAdded) 条
+        笔记写入 \(validNotes.count) 条
+        历史新增 \(newRecs.count) 条\(conflicts.isEmpty ? "" : "（重复跳过 \(conflicts.count) 条）")
+        """
     }
 }

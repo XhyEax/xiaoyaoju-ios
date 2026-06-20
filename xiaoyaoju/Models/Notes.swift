@@ -3,30 +3,88 @@
 // 标识格式：单章「<章序号>」；分段「<章序号>-<段序号>」；
 //          易经「<卦号>-judgment / <卦号>-image / <卦号>-yao<行号>」
 import SwiftUI
+import SwiftData
+import CoreData
 
+// 笔记记录（CloudKit 同步）。CloudKit 不支持唯一约束，(kind,key) 唯一性由代码 upsert 保证。
+@Model
+final class NoteRecord {
+    var kind: String = ""      // yj / ddj / zz …
+    var key: String = ""       // 笔记标识（anchor）
+    var text: String = ""
+    var updatedAt: Date = Date.distantPast
+
+    init(kind: String, key: String, text: String, updatedAt: Date = .now) {
+        self.kind = kind; self.key = key; self.text = text; self.updatedAt = updatedAt
+    }
+}
+
+@MainActor
 @Observable
 final class NotesStore {
     static let shared = NotesStore()
 
-    private var store: [String: [String: String]] = [:]
+    // 同步读用的内存缓存：kind -> { key: text }；写时同步更新，CloudKit 远端变更后重载
+    private var cache: [String: [String: String]] = [:]
+    @ObservationIgnored private let ctx = SharedStore.shared.mainContext
 
     private init() {
-        // 扫描所有 note_* 键，载入已有笔记
-        for (k, v) in UserDefaults.standard.dictionaryRepresentation() where k.hasPrefix("note_") {
-            if let d = v as? [String: String] { store[String(k.dropFirst(5))] = d }
-        }
+        migrateFromUserDefaultsIfNeeded()
+        reload()
+        // CloudKit 远端合并进本地后刷新缓存（mainContext 会自动合并远端变更）
+        NotificationCenter.default.addObserver(
+            forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.reload() } }
     }
 
-    func map(_ kind: String) -> [String: String] { store[kind] ?? [:] }
-    func get(_ kind: String, _ id: String) -> String { store[kind]?[id] ?? "" }
+    func map(_ kind: String) -> [String: String] { cache[kind] ?? [:] }
+    func get(_ kind: String, _ id: String) -> String { cache[kind]?[id] ?? "" }
 
     /// 保存（空文本即删除该条）
     func set(_ kind: String, _ id: String, _ text: String) {
-        var m = store[kind] ?? [:]
         let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = fetch(kind, id)
+        if t.isEmpty {
+            if let e = existing { ctx.delete(e) }
+        } else if let e = existing {
+            e.text = t; e.updatedAt = .now
+        } else {
+            ctx.insert(NoteRecord(kind: kind, key: id, text: t))
+        }
+        try? ctx.save()
+        // 同步更新缓存
+        var m = cache[kind] ?? [:]
         if t.isEmpty { m.removeValue(forKey: id) } else { m[id] = t }
-        store[kind] = m
-        UserDefaults.standard.set(m, forKey: "note_" + kind)
+        cache[kind] = m
+    }
+
+    private func fetch(_ kind: String, _ key: String) -> NoteRecord? {
+        let pred = #Predicate<NoteRecord> { $0.kind == kind && $0.key == key }
+        return try? ctx.fetch(FetchDescriptor(predicate: pred)).first
+    }
+
+    private func reload() {
+        var c: [String: [String: String]] = [:]
+        if let all = try? ctx.fetch(FetchDescriptor<NoteRecord>()) {
+            for r in all where !r.text.isEmpty { c[r.kind, default: [:]][r.key] = r.text }
+        }
+        cache = c
+    }
+
+    // 一次性迁移：把旧的 UserDefaults「note_<kind>」笔记并入 SwiftData（保留旧数据不删，作兜底）
+    private func migrateFromUserDefaultsIfNeeded() {
+        let flag = "notesMigratedToSwiftData_v1"
+        let ud = UserDefaults.standard
+        if ud.bool(forKey: flag) { return }
+        defer { ud.set(true, forKey: flag) }
+        for (k, v) in ud.dictionaryRepresentation() where k.hasPrefix("note_") {
+            guard let d = v as? [String: String] else { continue }
+            let kind = String(k.dropFirst(5))
+            for (key, text) in d where !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if fetch(kind, key) == nil { ctx.insert(NoteRecord(kind: kind, key: key, text: text)) }
+            }
+        }
+        try? ctx.save()
     }
 }
 

@@ -3,12 +3,12 @@ import SwiftUI
 
 struct FavoritesView: View {
     @State private var fav = FavoritesStore.shared
-    var search: String = ""
+    @State private var searchText = ""
     private var gua: GuaDatabase { .shared }
     private var db: ClassicsDatabase { .shared }
 
     private var filtered: [FavItem] {
-        let q = search.trimmingCharacters(in: .whitespaces)
+        let q = searchText.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return items }
         return items.filter { $0.title.localizedCaseInsensitiveContains(q) || $0.sub.localizedCaseInsensitiveContains(q) }
     }
@@ -36,12 +36,22 @@ struct FavoritesView: View {
     }
 
     var body: some View {
+        VStack(spacing: 0) {
+            if !items.isEmpty { InlineSearchBar(text: $searchText, prompt: "搜索收藏") }
+            content
+        }
+        .navigationTitle("收藏")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         Group {
             if items.isEmpty {
                 ContentUnavailableView("暂无收藏", systemImage: "star",
                     description: Text("在典籍 / 易经详情点 ★ 收藏"))
             } else if filtered.isEmpty {
-                ContentUnavailableView.search(text: search)
+                ContentUnavailableView.search(text: searchText)
             } else {
                 List {
                     ForEach(filtered) { it in

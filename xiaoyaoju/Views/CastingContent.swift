@@ -452,6 +452,7 @@ struct CastingContent: View {
         modelContext.insert(record)
         lastSaved = record
         savedAlert = true
+        WidgetBridge.publishLatest(record)   // 刷新「最近一卦」widget
         resetAll()
     }
 

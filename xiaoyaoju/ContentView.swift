@@ -5,7 +5,7 @@ import SwiftData
 struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = "yj"
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
-    @Query private var records: [CastRecord]   // 起卦历史，用于决定是否显示「爻一爻」tab
+    @AppStorage("showCastingTab") private var showCastingTab = false   // 设置里开关，默认关
     @State private var showUpdate = false
 
     private var db: ClassicsDatabase { .shared }
@@ -20,8 +20,8 @@ struct MainTabView: View {
                 bookTab(id)
             }
 
-            // 典籍少于 3 部且起卦历史 ≥ 6 时，在「收藏」左侧补一个「爻一爻」起卦入口
-            if books.count < 3 && records.count >= 6 {
+            // 典籍少于 3 部且设置里开启时，在「收藏」左侧补一个「爻一爻」起卦入口
+            if books.count < 3 && showCastingTab {
                 NavigationStack { CastingContent(navigationTitle: "爻一爻") }
                     .tabItem {
                         Image(uiImage: symbolTabImage("iphone.gen3.radiowaves.left.and.right"))
