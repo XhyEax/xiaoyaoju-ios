@@ -35,25 +35,18 @@ enum WidgetData {
         return ((n % count) + count) % count
     }
 
+    private static var suite: UserDefaults? { UserDefaults(suiteName: "group.com.xhy.shared") }
+    private static func offset(_ key: String) -> Int { suite?.integer(forKey: key) ?? 0 }
+
     static func gua(for date: Date) -> GuaLite? {
-        guas.isEmpty ? nil : guas[dayIndex(date, count: guas.count)]
+        guard !guas.isEmpty else { return nil }
+        let i = (dayIndex(date, count: guas.count) + offset("w.gua.offset")) % guas.count
+        return guas[(i + guas.count) % guas.count]
     }
     static func quote(for date: Date) -> QuoteLite? {
-        quotes.isEmpty ? nil : quotes[dayIndex(date, count: quotes.count)]
-    }
-}
-
-// App Group 共享：App 端写入「最近一卦」摘要，widget 读取（避免在扩展里引入 SwiftData/模型）
-enum WidgetShared {
-    static let suite = UserDefaults(suiteName: "group.com.xhy.shared")
-    struct Latest { let name: String; let question: String; let date: Date?; let number: Int }
-
-    static func latest() -> Latest? {
-        guard let s = suite, let name = s.string(forKey: "w.latest.name"), !name.isEmpty else { return nil }
-        return Latest(name: name,
-                      question: s.string(forKey: "w.latest.q") ?? "",
-                      date: s.object(forKey: "w.latest.date") as? Date,
-                      number: s.integer(forKey: "w.latest.num"))
+        guard !quotes.isEmpty else { return nil }
+        let i = (dayIndex(date, count: quotes.count) + offset("w.quote.offset")) % quotes.count
+        return quotes[(i + quotes.count) % quotes.count]
     }
 }
 
@@ -62,5 +55,4 @@ enum WidgetLink {
     static func gua(_ n: Int) -> URL { URL(string: "xiaoyaoju://gua/\(n)")! }
     static func chapter(_ book: String, _ index: Int) -> URL { URL(string: "xiaoyaoju://chapter/\(book)/\(index)")! }
     static let cast = URL(string: "xiaoyaoju://cast")!
-    static let latestRecord = URL(string: "xiaoyaoju://record/latest")!
 }

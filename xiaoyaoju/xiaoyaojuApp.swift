@@ -24,7 +24,6 @@ struct xiaoyaojuApp: App {
                     // 启动时后台预载经文数据，避免首次交互卡顿
                     await GuaDatabase.shared.preload()
                     await ClassicsDatabase.shared.preload()
-                    WidgetBridge.publishLatest()   // 同步「最近一卦」widget
                 }
         }
         .modelContainer(sharedModelContainer)

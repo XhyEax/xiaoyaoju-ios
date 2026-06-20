@@ -13,7 +13,6 @@ struct XiaoyaojuWidgetsBundle: WidgetBundle {
     var body: some Widget {
         DailyGuaWidget()
         DailyQuoteWidget()
-        RecentCastWidget()
         QuickCastWidget()
     }
 }

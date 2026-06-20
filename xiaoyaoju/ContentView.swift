@@ -7,9 +7,22 @@ struct MainTabView: View {
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
     @AppStorage("showCastingTab") private var showCastingTab = false   // 设置里开关，默认关
     @State private var showUpdate = false
+    @State private var deepLink: DeepLink?   // 小组件点击跳转
 
     private var db: ClassicsDatabase { .shared }
     private var books: [String] { parseTabBooks(tabBooksRaw) }
+
+    // 小组件 deep link：xiaoyaoju://cast | gua/<n> | chapter/<book>/<index>
+    enum DeepLink: Identifiable {
+        case cast, gua(Int), chapter(String, Int)
+        var id: String {
+            switch self {
+            case .cast: return "cast"
+            case .gua(let n): return "gua\(n)"
+            case .chapter(let b, let i): return "ch\(b)\(i)"
+            }
+        }
+    }
 
     var body: some View {
         TabView {
@@ -44,6 +57,39 @@ struct MainTabView: View {
             Button("我知道了") { if let u = db.update { seenVersion = u.version } }
         } message: {
             Text(db.update?.content ?? "")
+        }
+        .onOpenURL { handleURL($0) }
+        .sheet(item: $deepLink) { deepLinkSheet($0) }
+    }
+
+    private func handleURL(_ url: URL) {
+        guard url.scheme == "xiaoyaoju" else { return }
+        switch url.host {
+        case "cast": deepLink = .cast
+        case "gua": if let n = Int(url.lastPathComponent) { deepLink = .gua(n) }
+        case "chapter":
+            let parts = url.pathComponents.filter { $0 != "/" }   // [book, index]
+            if parts.count == 2, let i = Int(parts[1]) { deepLink = .chapter(parts[0], i) }
+        default: break
+        }
+    }
+
+    @ViewBuilder
+    private func deepLinkSheet(_ link: DeepLink) -> some View {
+        NavigationStack {
+            Group {
+                switch link {
+                case .cast:
+                    CastingContent(navigationTitle: "爻一爻")
+                case .gua(let n):
+                    if let g = GuaDatabase.shared.hexagram(number: n) {
+                        HexagramDetailView(hexagram: g, showShareActions: true)
+                    } else { ContentUnavailableView("未找到该卦", systemImage: "questionmark.circle") }
+                case .chapter(let b, let i):
+                    BookChapterView(bookId: b, index: i)
+                }
+            }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("完成") { deepLink = nil } } }
         }
     }
 

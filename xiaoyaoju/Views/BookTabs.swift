@@ -211,7 +211,6 @@ struct BookSettingsView: View {
         let (newRecs, conflicts) = RecordTransfer.planRecordImport(incoming: b.records, existingDates: existing)
         for dto in newRecs { ctx.insert(CastRecord(dto: dto)) }
         try? ctx.save()
-        WidgetBridge.publishLatest()
         importResult = """
         导入完成：
         收藏新增 \(favAdded) 条

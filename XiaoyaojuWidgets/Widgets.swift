@@ -1,6 +1,7 @@
-// Widgets.swift — 每日一卦 / 每日一句 / 最近一卦 / 快速起卦
+// Widgets.swift — 每日一卦 / 每日一句 / 快速起卦
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 // MARK: - 每日内容（按日确定性轮换，跨天刷新）
 
@@ -40,6 +41,20 @@ struct DailyGuaView: View {
     private var gua: GuaLite? { WidgetData.gua(for: entry.date) }
 
     var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)   // 撑满，刷新按钮锚在 widget 右上角、不随卦象移动
+            .overlay(alignment: .topTrailing) {
+                if family == .systemSmall || family == .systemMedium {
+                    Button(intent: NextGuaIntent()) {
+                        Image(systemName: "arrow.clockwise").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .widgetURL(gua.map { WidgetLink.gua($0.number) })   // 点按 → 卦详情
+    }
+
+    @ViewBuilder private var content: some View {
         let g = gua
         switch family {
         case .accessoryInline:
@@ -102,6 +117,20 @@ struct DailyQuoteView: View {
     private var quote: QuoteLite? { WidgetData.quote(for: entry.date) }
 
     var body: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)   // 撑满，刷新按钮锚右上角不移动
+            .overlay(alignment: .topTrailing) {
+                if family == .systemMedium || family == .systemLarge {
+                    Button(intent: NextQuoteIntent()) {
+                        Image(systemName: "arrow.clockwise").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .widgetURL(quote.map { WidgetLink.chapter($0.book, $0.index) })   // 点按 → 对应章节
+    }
+
+    @ViewBuilder private var content: some View {
         let q = quote
         if family == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 2) {
@@ -117,62 +146,6 @@ struct DailyQuoteView: View {
                 Spacer(minLength: 0)
                 Text(q?.source ?? "").font(.caption2).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-    }
-}
-
-// MARK: 最近一卦（读 App Group 共享摘要）
-
-struct RecentEntry: TimelineEntry { let date: Date; let latest: WidgetShared.Latest? }
-
-struct RecentProvider: TimelineProvider {
-    func placeholder(in context: Context) -> RecentEntry { RecentEntry(date: Date(), latest: nil) }
-    func getSnapshot(in context: Context, completion: @escaping (RecentEntry) -> Void) {
-        completion(RecentEntry(date: Date(), latest: WidgetShared.latest()))
-    }
-    func getTimeline(in context: Context, completion: @escaping (Timeline<RecentEntry>) -> Void) {
-        // 主要靠 App 保存后 reloadAllTimelines() 刷新；这里再给个 6 小时兜底
-        let next = Date().addingTimeInterval(6 * 3600)
-        completion(Timeline(entries: [RecentEntry(date: Date(), latest: WidgetShared.latest())], policy: .after(next)))
-    }
-}
-
-struct RecentCastWidget: Widget {
-    let kind = "RecentCastWidget"
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: RecentProvider()) { entry in
-            RecentCastView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
-                .widgetURL(WidgetLink.latestRecord)
-        }
-        .configurationDisplayName("最近一卦")
-        .description("最近一次起卦记录")
-        .supportedFamilies([.systemSmall, .systemMedium])
-    }
-}
-
-struct RecentCastView: View {
-    let entry: RecentEntry
-    var body: some View {
-        if let l = entry.latest {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("最近一卦").font(.caption2).foregroundStyle(.secondary)
-                Text(l.name).font(.title3.bold())
-                if !l.question.isEmpty {
-                    Text(l.question).font(.caption).foregroundStyle(.secondary).lineLimit(2)
-                }
-                Spacer(minLength: 0)
-                if let d = l.date {
-                    Text(d, format: .dateTime.month().day().hour().minute())
-                        .font(.caption2).foregroundStyle(.tertiary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            VStack(spacing: 6) {
-                Image(systemName: "circle.grid.cross").font(.title2).foregroundStyle(.secondary)
-                Text("还没有起卦记录").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -207,7 +180,7 @@ struct QuickCastView: View {
         } else {
             VStack(spacing: 8) {
                 Image(systemName: "hexagon.fill").font(.system(size: 34)).foregroundStyle(.tint)
-                Text("起卦").font(.headline)
+                Text("六爻起卦").font(.headline)
                 Text("点击占问").font(.caption2).foregroundStyle(.secondary)
             }
         }
