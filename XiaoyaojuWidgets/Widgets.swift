@@ -171,13 +171,13 @@ struct QuickCastView: View {
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: "hexagon").font(.system(size: 44, weight: .light))
-                Text("䷊").font(.system(size: 30))   // 地天泰
+                Text("䷀").font(.system(size: 30))   // 乾为天
             }
         } else {
             VStack(spacing: 8) {
                 ZStack {
                     Image(systemName: "hexagon").font(.system(size: 84, weight: .light)).foregroundStyle(.tint)
-                    Text("䷊").font(.system(size: 60)).foregroundStyle(.tint)   // 地天泰
+                    Text("䷀").font(.system(size: 60)).foregroundStyle(.tint)   // 乾为天
                 }
                 Text("六爻起卦").font(.headline)
             }
