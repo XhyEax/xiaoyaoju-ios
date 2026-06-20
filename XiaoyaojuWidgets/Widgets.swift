@@ -1,4 +1,4 @@
-// Widgets.swift — 每日一卦 / 每日一句 / 快速起卦
+// Widgets.swift — 每日一卦 / 每日一章 / 快速起卦
 import WidgetKit
 import SwiftUI
 import AppIntents
@@ -62,10 +62,7 @@ struct DailyGuaView: View {
         case .accessoryCircular:
             ZStack {
                 AccessoryWidgetBackground()
-                VStack(spacing: 0) {
-                    Text(g?.symbol ?? "☰").font(.title2)
-                    Text(g?.name.prefix(2) ?? "").font(.system(size: 9))
-                }
+                Text(g?.symbol ?? "☰").font(.largeTitle)
             }
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 2) {
@@ -79,7 +76,7 @@ struct DailyGuaView: View {
                     Text(g?.name ?? "").font(.subheadline.bold())
                 }
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("今日一卦").font(.caption2).foregroundStyle(.secondary)
+//                    Text("每日一卦").font(.caption2).foregroundStyle(.secondary)
                     Text(g?.judgment ?? "").font(.callout).lineLimit(3)
                     Text(g?.xiang ?? "").font(.caption2).foregroundStyle(.secondary).lineLimit(2)
                 }
@@ -96,7 +93,7 @@ struct DailyGuaView: View {
     }
 }
 
-// MARK: 每日一句
+// MARK: 每日一章
 
 struct DailyQuoteWidget: Widget {
     let kind = "DailyQuoteWidget"
@@ -105,8 +102,8 @@ struct DailyQuoteWidget: Widget {
             DailyQuoteView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("每日一句")
-        .description("每天一句经典")
+        .configurationDisplayName("每日一章")
+        .description("每天一章道德经")
         .supportedFamilies([.systemMedium, .systemLarge, .accessoryRectangular])
     }
 }
@@ -139,7 +136,7 @@ struct DailyQuoteView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Text("每日一句").font(.caption2).foregroundStyle(.secondary)
+                Text("每日一章").font(.caption2).foregroundStyle(.secondary)
                 Text(q?.text ?? "")
                     .font(family == .systemLarge ? .title3 : .callout)
                     .lineLimit(family == .systemLarge ? 8 : 4)
@@ -173,15 +170,16 @@ struct QuickCastView: View {
         if family == .accessoryCircular {
             ZStack {
                 AccessoryWidgetBackground()
-                Image(systemName: "hexagon")
-                    .font(.title2)
-                    .overlay(Text("卦").font(.system(size: 11, weight: .bold)))
+                Image(systemName: "hexagon").font(.system(size: 40, weight: .light))
+                Text("䷊").font(.system(size: 18))   // 地天泰
             }
         } else {
             VStack(spacing: 8) {
-                Image(systemName: "hexagon.fill").font(.system(size: 34)).foregroundStyle(.tint)
+                ZStack {
+                    Image(systemName: "hexagon").font(.system(size: 78, weight: .light)).foregroundStyle(.tint)
+                    Text("䷊").font(.system(size: 30)).foregroundStyle(.tint)   // 地天泰
+                }
                 Text("六爻起卦").font(.headline)
-                Text("点击占问").font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
