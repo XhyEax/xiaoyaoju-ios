@@ -2,7 +2,7 @@
 import SwiftUI
 
 struct NotesView: View {
-    private let mpURL = URL(string: "https://mp.weixin.qq.com/s/fgDR9CJ38TJCd8Q5z2mV5g")!
+    private let mpURL = URL(string: "https://mp.weixin.qq.com/s/_TF340hYqmtMXPOB9uD_4g")!
     @State private var showSettings = false
     @AppStorage("appColorScheme") private var colorSchemeIndex = 0
     @AppStorage("hideNotes") private var hideNotes = false   // 阅读模式：隐藏笔记/注释/译文

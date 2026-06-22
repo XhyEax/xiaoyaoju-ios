@@ -45,9 +45,10 @@ func symbolTabImage(_ name: String, height: CGFloat = 27) -> UIImage {
 // 典籍 Tab 设置：选 1-3 本，按勾选顺序保存到『tabBooks』
 struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("tabBooks") private var tabBooksRaw = "yj"
+    @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
-    @AppStorage("showCastingTab") private var showCastingTab = false
+    @AppStorage("showCastingTab") private var showCastingTab = true
+    @AppStorage("didManualRefresh") private var didManualRefresh = false
     @State private var sel: [String] = []
     @State private var toast: String?
     @State private var refreshing = false
@@ -93,10 +94,8 @@ struct BookSettingsView: View {
                         }
                     }
                 }
-                if sel.count < 3 {
-                    Section() {
-                        Toggle("少于3本时显示「爻一爻」", isOn: $showCastingTab)
-                    }
+                Section() {
+                    Toggle("显示「爻一爻」", isOn: $showCastingTab)
                 }
                 Section(header: Text("正文字体大小")) {
                     Picker("字体大小", selection: $fontScale) {
@@ -145,6 +144,7 @@ struct BookSettingsView: View {
     // 刷新：重新拉取 config.json，3 秒 toast 提示已更新/未更新
     private func doRefresh() async {
         if refreshing { return }
+        didManualRefresh = true   // 之后启动也会自动 fetch
         refreshing = true
         let changed = await db.fetchConfig()
         refreshing = false

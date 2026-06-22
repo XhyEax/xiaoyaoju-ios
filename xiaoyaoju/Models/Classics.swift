@@ -45,12 +45,11 @@ struct UpdateInfo: Equatable { let title: String; let content: String; let versi
 final class ClassicsDatabase {
     static let shared = ClassicsDatabase()
 
-    private static let CONFIG_URL = "https://book.xhyeax.cn/config.json"
+    private static let CONFIG_URL = "https://book.xhyeax.cn/config_ios.json"
     private static let DATA_BASE = "https://book.xhyeax.cn/"
 
     // 默认 booklist（与小程序 config.json 对齐；首次/离线兜底）
     private static let DEFAULT_METAS: [BookMeta] = [
-        BookMeta(id: "yj", name: "易经", icon: "易", isYijing: true)
     ]
     // 随包资源名（仅这些 id 有随包 JSON；其它走远程 <id>.json）
     private let bundleNames: [String: String] = [

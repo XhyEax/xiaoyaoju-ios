@@ -3,9 +3,10 @@ import SwiftUI
 import SwiftData
 
 struct MainTabView: View {
-    @AppStorage("tabBooks") private var tabBooksRaw = "yj"
+    @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
-    @AppStorage("showCastingTab") private var showCastingTab = false   // 设置里开关，默认关
+    @AppStorage("showCastingTab") private var showCastingTab = true   // 设置里开关
+    @AppStorage("didManualRefresh") private var didManualRefresh = false  // 手动刷新过则启动也 fetch
     @State private var showUpdate = false
     @State private var deepLink: DeepLink?   // 小组件点击跳转
 
@@ -33,8 +34,8 @@ struct MainTabView: View {
                 bookTab(id)
             }
 
-            // 典籍少于 3 部且设置里开启时，在「收藏」左侧补一个「爻一爻」起卦入口
-            if books.count < 3 && showCastingTab {
+            // 设置里开启时，在「收藏」左侧补一个「爻一爻」起卦入口
+            if showCastingTab {
                 NavigationStack { CastingContent(navigationTitle: "爻一爻") }
                     .tabItem {
                         Image(uiImage: symbolTabImage("iphone.gen3.radiowaves.left.and.right"))
@@ -45,13 +46,14 @@ struct MainTabView: View {
             RecordsView()
                 .tabItem { Label("收藏", image: "TabRecords") }
         }
+        // 默认不在启动请求 CONFIG_URL；用户在设置手动刷新过一次后，以后启动也 fetch
         .task {
-            // 启动拉 config.json：更新 booklist + 取 update。版本变化则弹一次更新提示
-            await db.fetchConfig()
-            if let u = db.update {
-                if seenVersion == 0 { seenVersion = u.version }   // 首次安装不提示已内置内容
-                else if u.version != seenVersion { showUpdate = true }
-            }
+            if didManualRefresh { await db.fetchConfig() }
+        }
+        .onChange(of: db.update) { _, u in
+            guard let u else { return }
+            if seenVersion == 0 { seenVersion = u.version }   // 首次拉到不提示已内置内容
+            else if u.version != seenVersion { showUpdate = true }
         }
         .alert(db.update?.title ?? "更新内容", isPresented: $showUpdate) {
             Button("我知道了") { if let u = db.update { seenVersion = u.version } }
