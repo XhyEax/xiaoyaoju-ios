@@ -47,8 +47,8 @@ struct BookSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
-    @AppStorage("showCastingTab") private var showCastingTab = true
-    @AppStorage("didManualRefresh") private var didManualRefresh = false
+    @AppStorage("showCastingTab") private var showCastingTab = false
+    @AppStorage("didManualRefresh") private var didManualRefresh = true
     @State private var sel: [String] = []
     @State private var toast: String?
     @State private var refreshing = false

@@ -45,7 +45,7 @@ struct UpdateInfo: Equatable { let title: String; let content: String; let versi
 final class ClassicsDatabase {
     static let shared = ClassicsDatabase()
 
-    private static let CONFIG_URL = "https://book.xhyeax.cn/config_ios.json"
+    private static let CONFIG_URL = "https://book.xhyeax.cn/config.json"
     private static let DATA_BASE = "https://book.xhyeax.cn/"
 
     // 默认 booklist（与小程序 config.json 对齐；首次/离线兜底）

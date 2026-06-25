@@ -5,8 +5,8 @@ import SwiftData
 struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
-    @AppStorage("showCastingTab") private var showCastingTab = true   // 设置里开关
-    @AppStorage("didManualRefresh") private var didManualRefresh = false  // 手动刷新过则启动也 fetch
+    @AppStorage("showCastingTab") private var showCastingTab = false   // 设置里开关，默认关
+    @AppStorage("didManualRefresh") private var didManualRefresh = true  // 默认启动即 fetch（不上架）
     @State private var showUpdate = false
     @State private var deepLink: DeepLink?   // 小组件点击跳转
 
