@@ -48,7 +48,7 @@ struct BookSettingsView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("readerFontScale") private var fontScale: Double = 1.0
     @AppStorage("showCastingTab") private var showCastingTab = false
-    @AppStorage("didManualRefresh") private var didManualRefresh = true
+    @AppStorage("autoRefresh") private var autoRefresh = true
     @State private var sel: [String] = []
     @State private var toast: String?
     @State private var refreshing = false
@@ -144,7 +144,7 @@ struct BookSettingsView: View {
     // 刷新：重新拉取 config.json，3 秒 toast 提示已更新/未更新
     private func doRefresh() async {
         if refreshing { return }
-        didManualRefresh = true   // 之后启动也会自动 fetch
+        autoRefresh = true   // 之后启动也会自动 fetch
         refreshing = true
         let changed = await db.fetchConfig()
         refreshing = false

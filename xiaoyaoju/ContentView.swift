@@ -6,7 +6,7 @@ struct MainTabView: View {
     @AppStorage("tabBooks") private var tabBooksRaw = ""
     @AppStorage("seenUpdateVersion") private var seenVersion = 0
     @AppStorage("showCastingTab") private var showCastingTab = false   // 设置里开关，默认关
-    @AppStorage("didManualRefresh") private var didManualRefresh = true  // 默认启动即 fetch（不上架）
+    @AppStorage("autoRefresh") private var autoRefresh = true  // 默认启动即 fetch（不上架）
     @State private var showUpdate = false
     @State private var deepLink: DeepLink?   // 小组件点击跳转
 
@@ -48,7 +48,7 @@ struct MainTabView: View {
         }
         // 默认不在启动请求 CONFIG_URL；用户在设置手动刷新过一次后，以后启动也 fetch
         .task {
-            if didManualRefresh { await db.fetchConfig() }
+            if autoRefresh { await db.fetchConfig() }
         }
         .onChange(of: db.update) { _, u in
             guard let u else { return }
